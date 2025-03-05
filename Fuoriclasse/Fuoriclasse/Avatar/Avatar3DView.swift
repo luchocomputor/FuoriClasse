@@ -8,13 +8,16 @@ struct Avatar3DView: UIViewRepresentable {
 
         // Charger le modèle MyAvatar.usdz
         if let avatarNode = load3DModel() {
+            avatarNode.scale = SCNVector3(0.8, 0.8, 0.8) // Ajuste la taille
+            avatarNode.position = SCNVector3(0, 0.5, 0) // 🔥 Remonte l'avatar
             scene.rootNode.addChildNode(avatarNode)
         }
 
         // Configuration de la SCNView
         scnView.scene = scene
-        scnView.allowsCameraControl = true  // Permet de zoomer et tourner autour du modèle
+        scnView.allowsCameraControl = true  // Permet les déplacements
         scnView.autoenablesDefaultLighting = true // Lumière par défaut
+        scnView.backgroundColor = UIColor.clear // Supprime le fond blanc
 
         return scnView
     }
@@ -26,6 +29,8 @@ struct Avatar3DView: UIViewRepresentable {
         uiView.scene?.rootNode.childNodes.forEach { $0.removeFromParentNode() }
 
         if let avatarNode = load3DModel() {
+            avatarNode.scale = SCNVector3(0.8, 0.8, 0.8) // Ajuste la taille
+            avatarNode.position = SCNVector3(0, -0.5, 0) // 🔥 Assure que l'avatar est bien remonté
             uiView.scene?.rootNode.addChildNode(avatarNode)
         }
     }
