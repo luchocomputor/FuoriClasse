@@ -1,5 +1,4 @@
 import UIKit
-import CoreData
 
 class DressingItemAddViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
 
@@ -12,26 +11,23 @@ class DressingItemAddViewController: UIViewController, UIImagePickerControllerDe
               let category = categoryTextField.text, !category.isEmpty else {
             return
         }
+
         let photoData = itemImageView.image?.jpegData(compressionQuality: 0.8)
 
-        // Récupérer le contexte via le singleton
-        let context = CoreDataController.shared.context
+        let newItemDTO = DressingItemDTO(
+            id: UUID(),
+            title: name,
+            category: category,
+            size: "M", // Tu peux changer ça dynamiquement selon tes besoins
+            color: "",
+            brand: "",
+            image: photoData,
+            dotClass: DotClass.green.rawValue,
+            additionalInfo: ""
+        )
 
-        // Créer l’objet Core Data
-        let newItem = DressingItem(context: context)
-        newItem.id = UUID()
-        newItem.title = name
-        newItem.category = category
-        newItem.size = "M"  // Valeur par défaut ou à compléter
-        newItem.color = ""
-        newItem.image = photoData
-        newItem.dotClass = DotClass.green.rawValue
-        newItem.additionalInfo = ""
+        Persistence.shared.addItem(newItemDTO)
 
-        // Persister l’objet via le service Persistence
-        Persistence.shared.addItem(newItem)
-
-        // Fermer la vue
         navigationController?.popViewController(animated: true)
     }
 }

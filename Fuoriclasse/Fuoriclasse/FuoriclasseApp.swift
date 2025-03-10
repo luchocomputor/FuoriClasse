@@ -10,12 +10,18 @@ import SwiftUI
 
 @main
 struct FuoriclasseApp: App {
-    let coreDataController = CoreDataController.shared
-    
     var body: some Scene {
         WindowGroup {
-            HomeView()
-                .environment(\.managedObjectContext, coreDataController.context)
+            MainViewRepresentable()
+                .edgesIgnoringSafeArea(.all)
         }
     }
+}
+
+struct MainViewRepresentable: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> UIViewController {
+        return MainTabBarController()
+    }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
 }

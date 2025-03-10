@@ -57,6 +57,7 @@ struct DressingItemDTO: Codable {
     var category: String
     var size: String
     var color: String
+    var brand: String
     var image: Data?
     var dotClass: String
     var additionalInfo: String

@@ -12,20 +12,11 @@ class Persistence {
     }
     
     // Convertit un DressingItem en DTO et le stocke en JSON
-    func addItem(_ item: DressingItem) {
-        let dto = DressingItemDTO(
-            id: item.id,
-            title: item.title,
-            category: item.category,
-            size: item.size,
-            color: item.color,
-            image: item.image,
-            dotClass: item.dotClass,
-            additionalInfo: item.additionalInfo
-        )
+    func addItem(_ dto: DressingItemDTO) {
         itemsDTO.append(dto)
         saveItems()
     }
+
     
     func getAllItems() -> [DressingItemDTO] {
         return itemsDTO
@@ -55,4 +46,20 @@ class Persistence {
     private func getDocumentsDirectory() -> URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
+    func refreshItems() {
+        loadItems()
+    }
+    func deleteItem(_ item: DressingItemDTO) {
+        itemsDTO.removeAll { $0.id == item.id }
+        saveItems()
+    }
+    func updateItem(updatedItem: DressingItemDTO) {
+        if let index = itemsDTO.firstIndex(where: { $0.id == updatedItem.id }) {
+            itemsDTO[index] = updatedItem
+            saveItems()
+        }
+    }
+
+
+
 }

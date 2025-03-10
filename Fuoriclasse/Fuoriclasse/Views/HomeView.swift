@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 // MARK: - HOME VIEW (Optimisée pour iPhone)
 struct HomeView: View {
@@ -76,6 +77,31 @@ struct HomeView: View {
 // Remplace simplement ta struct FluidBackgroundView
 // par cette nouvelle version plus "immersive".
 
+// MARK: - HELPER FUNCTIONS
+
+/// Returns a noise value (in the range roughly –1 to 1) by summing several sine waves whose amplitudes obey the Kolmogorov –5⁄3 scaling.
+/// This function approximates a turbulent (fractal) noise spectrum.
+func kolmogorovNoise(time t: Double, baseFrequency: Double, phase: Double, octaves: Int = 4) -> Double {
+    var noise = 0.0
+    var frequency = baseFrequency
+    var amplitude = 1.0
+    var totalAmplitude = 0.0
+    for _ in 0..<octaves {
+        noise += amplitude * sin(t * frequency + phase)
+        totalAmplitude += amplitude
+        amplitude *= pow(2, -5.0/3.0) // scale amplitude according to Kolmogorov’s law
+        frequency *= 2
+    }
+    return noise / totalAmplitude
+}
+
+/// Linearly maps a value from one range to another.
+func map(_ value: Double, from lower: Double, to upper: Double, newLower: Double, newUpper: Double) -> Double {
+    return newLower + (value - lower) * (newUpper - newLower) / (upper - lower)
+}
+
+// MARK: - FLUID BACKGROUND VIEW
+
 struct FluidBackgroundView: View {
     var body: some View {
         ZStack {
@@ -145,13 +171,14 @@ struct FluidBackgroundView: View {
             )
             
             // Sparkles (discrètes, mais sur un large périmètre)
-            SparkleField(count: 50, color: .white.opacity(0.15), maxSize: 4, speed: 8, rangeXY: 800)
-            SparkleField(count: 30, color: .white.opacity(0.1), maxSize: 3, speed: 10, rangeXY: 800)
+            SparkleField(count: 50, color: Color.white.opacity(0.15), maxSize: 4, speed: 8, rangeXY: 800)
+            SparkleField(count: 30, color: Color.white.opacity(0.1), maxSize: 3, speed: 10, rangeXY: 800)
         }
     }
 }
 
-// MARK: - ENRICHED BLOB VIEW
+// MARK: - ENRICHED BLOB VIEW (with Kolmogorov turbulence)
+
 struct EnrichedBlobView: View {
     let baseColor: Color
     let size: CGFloat
@@ -165,57 +192,51 @@ struct EnrichedBlobView: View {
     let hueShiftSpeed: Double
     let opacityPulse: Bool
     
-    @State private var xOffset: CGFloat = 0
-    @State private var yOffset: CGFloat = 0
-    @State private var scale: CGFloat = 1.0
-    @State private var rotation: Double = 0
-    
-    @State private var hueAngle: Double = 0
-    @State private var opacityValue: Double = 1.0
+    // Random phase offsets for independent noise channels
+    let xPhase = Double.random(in: 0...1000)
+    let yPhase = Double.random(in: 0...1000)
+    let scalePhase = Double.random(in: 0...1000)
+    let rotationPhase = Double.random(in: 0...1000)
     
     var body: some View {
-        Circle()
-            .fill(baseColor.opacity(opacityValue * 0.3))
-            .hueRotation(Angle(degrees: hueAngle))
-            .frame(width: size, height: size)
-            .blur(radius: size / 4)
-            .scaleEffect(scale)
-            .rotationEffect(.degrees(rotation))
-            .offset(x: xOffset, y: yOffset)
-            .onAppear {
-                xOffset = random(in: xRange)
-                yOffset = random(in: yRange)
-                scale = random(in: scaleRange)
-                rotation = random(in: rotationRange)
-                
-                withAnimation(Animation.easeInOut(duration: speed).repeatForever(autoreverses: true)) {
-                    xOffset = random(in: xRange)
-                    yOffset = random(in: yRange)
-                    scale = random(in: scaleRange)
-                    rotation = random(in: rotationRange)
-                }
-                
-                withAnimation(Animation.linear(duration: hueShiftSpeed).repeatForever(autoreverses: false)) {
-                    hueAngle = 360
-                }
-                
-                if opacityPulse {
-                    withAnimation(Animation.easeInOut(duration: speed).repeatForever(autoreverses: true)) {
-                        opacityValue = 0.5
-                    }
-                }
-            }
-    }
-    
-    private func random(in range: ClosedRange<CGFloat>) -> CGFloat {
-        CGFloat.random(in: range)
-    }
-    private func random(in range: ClosedRange<Double>) -> Double {
-        Double.random(in: range)
+        // TimelineView gives us a continuously updating time value
+        TimelineView(.animation) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            // Set base frequency so that the first octave’s period is ~speed seconds.
+            let baseFrequency = 2 * Double.pi / speed
+            
+            // Compute the noise values for each property using our Kolmogorov-inspired function.
+            let noiseX = kolmogorovNoise(time: t, baseFrequency: baseFrequency, phase: xPhase)
+            let noiseY = kolmogorovNoise(time: t, baseFrequency: baseFrequency, phase: yPhase)
+            let noiseScale = kolmogorovNoise(time: t, baseFrequency: baseFrequency, phase: scalePhase)
+            let noiseRotation = kolmogorovNoise(time: t, baseFrequency: baseFrequency, phase: rotationPhase)
+            
+            // Map the noise (≈–1 … 1) to the desired ranges.
+            let xOffset = map(noiseX, from: -1, to: 1, newLower: Double(xRange.lowerBound), newUpper: Double(xRange.upperBound))
+            let yOffset = map(noiseY, from: -1, to: 1, newLower: Double(yRange.lowerBound), newUpper: Double(yRange.upperBound))
+            let scaleValue = map(noiseScale, from: -1, to: 1, newLower: Double(scaleRange.lowerBound), newUpper: Double(scaleRange.upperBound))
+            let rotationValue = map(noiseRotation, from: -1, to: 1, newLower: rotationRange.lowerBound, newUpper: rotationRange.upperBound)
+            
+            // Hue rotation: progress linearly over time
+            let hueAngle = (t.truncatingRemainder(dividingBy: hueShiftSpeed)) / hueShiftSpeed * 360
+            
+            // Opacity pulsing (if enabled)
+            let opacityValue: Double = opacityPulse ? (0.75 + 0.25 * sin(t * baseFrequency)) : 1.0
+            
+            Circle()
+                .fill(baseColor.opacity(opacityValue * 0.3))
+                .hueRotation(Angle(degrees: hueAngle))
+                .frame(width: size, height: size)
+                .blur(radius: size / 4)
+                .scaleEffect(CGFloat(scaleValue))
+                .rotationEffect(.degrees(rotationValue))
+                .offset(x: CGFloat(xOffset), y: CGFloat(yOffset))
+        }
     }
 }
 
-// MARK: - SPARKLE FIELD
+// MARK: - SPARKLE FIELD (unchanged)
+
 struct SparkleField: View {
     let count: Int
     let color: Color

@@ -29,9 +29,9 @@ struct AvatarView: View {
 
             // 🔹 3. Avatar directement intégré sans cadre blanc
             Avatar3DView()
-                .frame(maxWidth: .infinity, maxHeight: 1000)
-                .offset(y: -100) // 🔥 Remonte l'avatar
-                .ignoresSafeArea() // 🔥 Supprime tout cadre
+                .frame(maxWidth: .infinity, maxHeight: 500) // 🔥 Reduce height for a better layout
+                .offset(y: -50) // 🔥 Adjust vertical positioning slightly
+                .ignoresSafeArea()
 
             // 🔹 4. Bouton flottant en bas
             VStack {
