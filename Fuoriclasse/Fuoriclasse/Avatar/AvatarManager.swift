@@ -9,18 +9,22 @@ import Foundation
 
 class AvatarManager: ObservableObject {
     @Published var avatarURL: URL?
-    
-    func fetchAvatar() {
-        let userID = "user123"
-        let urlString = "https://api.readyplayer.me/v1/avatars/\(userID).glb"
+
+    func fetchAvatar(fileName: String) {
+        let possibleExtensions = ["usdz", "glb"]  // ✅ Liste des formats acceptés
         
-        guard let url = URL(string: urlString) else {
-            print("❌ URL de l'avatar invalide")
-            return
+        for ext in possibleExtensions {
+            if let url = Bundle.main.url(forResource: fileName, withExtension: ext) {
+                DispatchQueue.main.async {
+                    self.avatarURL = url
+                    print("✅ Avatar local chargé : \(url)")
+                }
+                return  // ✅ Arrête dès qu'on trouve un fichier existant
+            }
         }
-        
-        print("✅ Avatar téléchargé depuis : \(url)")
-        self.avatarURL = url
+
+        print("❌ Aucun fichier \(fileName).usdz ou \(fileName).glb trouvé dans le bundle")
     }
 }
+
 

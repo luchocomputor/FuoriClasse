@@ -1,4 +1,19 @@
 import SwiftUI
+import UIKit
+
+struct BlurView: UIViewRepresentable {
+    var style: UIBlurEffect.Style
+
+    func makeUIView(context: Context) -> UIVisualEffectView {
+        let view = UIVisualEffectView(effect: UIBlurEffect(style: style))
+        view.backgroundColor = UIColor.white.withAlphaComponent(0.1) // Léger voile blanc
+        view.layer.cornerRadius = 12
+        view.clipsToBounds = true
+        return view
+    }
+
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {}
+}
 
 struct DressingItemEditView: View {
     @Binding var isPresented: Bool
@@ -27,33 +42,106 @@ struct DressingItemEditView: View {
     }
 
     var body: some View {
-        VStack {
-            TextField("Titre", text: $title)
-                .padding()
+        ZStack {
+            RadialGradient(gradient: Gradient(colors: [
+                Color(red: 40/255, green: 10/255, blue: 90/255),
+                Color(red: 15/255, green: 5/255, blue: 40/255)
+            ]), center: .center, startRadius: 100, endRadius: 500)
+            .ignoresSafeArea()
 
-            // Ajoute tes autres champs ici (Picker, PhotoPicker...)
+            FluidBackgroundView()
 
-            Button("Enregistrer") {
-                saveChanges()
+            VStack {
+                Text("Modifier l'article")
+                    .font(.custom("Futura-Bold", size: 26))
+                    .foregroundColor(.white)
+                    .shadow(radius: 4)
+                    .padding(.top, 30)
+
+                if let data = imageData, let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 220, height: 220)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .shadow(radius: 6)
+                        .padding(.top, 10)
+                        .transition(.opacity)
+                }
+
+                ScrollView {
+                    VStack(spacing: 15) {
+                        CustomGlassField(placeholder: "Titre", text: $title)
+                        CustomGlassField(placeholder: "Catégorie", text: $category)
+                        CustomGlassField(placeholder: "Taille", text: $size)
+                        CustomGlassField(placeholder: "Couleur", text: $color)
+                        CustomGlassField(placeholder: "Marque", text: $brand)
+                        CustomGlassField(placeholder: "Classe", text: $dotClass)
+                        CustomGlassField(placeholder: "Infos supplémentaires", text: $additionalInfo)
+                    }
+                    .padding(.horizontal, 20)
+                }
+                .padding(.vertical, 10)
+
+                HStack(spacing: 20) {
+                    Button(action: saveChanges) {
+                        GlassButtonLabel(iconName: "checkmark", text: "Enregistrer")
+                    }
+
+                    Button(action: { isPresented = false }) {
+                        GlassButtonLabel(iconName: "xmark", text: "Annuler")
+                    }
+                }
+                .padding(.bottom, 20)
             }
+            .padding()
         }
-        .padding()
     }
 
     private func saveChanges() {
         let updatedDTO = DressingItemDTO(
-            id: dto.id,
-            title: title,
-            category: category,
-            size: size,
-            color: color,
-            brand: brand,
-            image: imageData,
-            dotClass: dotClass,
-            additionalInfo: additionalInfo
+            id: dto.id, title: title, category: category,
+            size: size, color: color, brand: brand,
+            image: imageData, dotClass: dotClass, additionalInfo: additionalInfo
         )
 
-        Persistence.shared.updateItem(updatedItem: updatedDTO) // FIXED
-        isPresented = false
+        withAnimation {
+            Persistence.shared.updateItem(updatedItem: updatedDTO)
+            isPresented = false
+        }
+    }
+}
+
+
+// MARK: - 🎨 Composants Custom
+struct CustomGlassField: View {
+    var placeholder: String
+    @Binding var text: String
+
+    var body: some View {
+        TextField(placeholder, text: $text)
+            .padding()
+            .background(BlurView(style: .systemThinMaterialDark))
+            .cornerRadius(12)
+            .foregroundColor(.white)
+            .padding(.horizontal, 20)
+    }
+}
+
+struct DetailGlassRow: View {
+    var label: String
+    var value: String
+
+    var body: some View {
+        HStack {
+            Text("\(label) :")
+                .font(.custom("Futura-Bold", size: 18))
+                .foregroundColor(.white)
+            Spacer()
+            Text(value)
+                .font(.custom("Futura", size: 18))
+                .foregroundColor(.white.opacity(0.8))
+        }
+        .padding(.horizontal, 20)
     }
 }

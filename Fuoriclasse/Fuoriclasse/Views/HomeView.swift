@@ -3,75 +3,85 @@ import Foundation
 
 // MARK: - HOME VIEW (Optimisée pour iPhone)
 struct HomeView: View {
-    @State private var navigationPath = NavigationPath()
-    
+    @State private var navigationPath = NavigationPath()  // ✅ Déclaration correcte
+
     var body: some View {
         NavigationStack(path: $navigationPath) {
             ZStack {
-                // 🔹 1. Fond Radial (maintenu)
-                RadialGradient(
-                    gradient: Gradient(colors: [
-                        Color(red: 40/255, green: 10/255, blue: 90/255),
-                        Color(red: 15/255, green: 5/255, blue: 40/255)
-                    ]),
-                    center: .center,
-                    startRadius: 100,
-                    endRadius: 500
-                )
-                .ignoresSafeArea()
-                
-                // 🔹 2. Fond Fluide (Blobs & Sparkles maintenus)
-                FluidBackgroundView()
-                
-                // 🔹 3. Contenu Principal
-                VStack(spacing: 25) {
-                    Spacer().frame(height: 50) // Ajustement de l’espace en haut
-                    
-                    // 🎨 TITRE & SOUS-TITRE
-                    VStack(spacing: 5) {
-                        Text("Gioia")
-                            .font(.custom("Futura-Bold", size: 42)) // Ajustement pour iPhone
-                            .foregroundColor(.white)
-                            .shadow(color: Color.black.opacity(0.2), radius: 4, x: 2, y: 2)
-                        
-                        Text("Modern Fashion Experience")
-                            .font(.custom("Futura", size: 20))
-                            .foregroundColor(Color.white.opacity(0.95))
-                    }
-                    
-                    // 🏷 "Carte" de Boutons
-                    VStack(spacing: 15) {
-                        NavigationLink(destination: DressingItemListView()) {
-                            AnimatedButtonLabel(
-                                iconName: "bag.fill",
-                                text: "Dressing"
-                            )
-                        }
-                        
-                        NavigationLink(destination: AvatarView(navigationPath: $navigationPath)) {
-                            AnimatedButtonLabel(
-                                iconName: "person.crop.circle",
-                                text: "Avatar"
-                            )
-                        }
-                    }
-                    .padding(20)
-                    .background(GlassBackgroundView())
-                    .cornerRadius(24)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                    )
-                    .shadow(color: Color.black.opacity(0.3), radius: 6, x: 0, y: 3)
-                    .padding(.horizontal, 30)
-                    
-                    Spacer()
-                }
+                homeBackground()
+                homeContent()
             }
             .navigationBarTitleDisplayMode(.inline)
         }
     }
+
+    // MARK: - 🌟 BACKGROUND : Radial Gradient & Fluid Animations
+    private func homeBackground() -> some View {
+        ZStack {
+            RadialGradient(
+                gradient: Gradient(colors: [
+                    Color(red: 40/255, green: 10/255, blue: 90/255),
+                    Color(red: 15/255, green: 5/255, blue: 40/255)
+                ]),
+                center: .center,
+                startRadius: 100,
+                endRadius: 500
+            )
+            .ignoresSafeArea()
+            
+            FluidBackgroundView() // 🌊 Effets fluides maintenus
+        }
+    }
+
+    // MARK: - 🎭 CONTENU PRINCIPAL : Titre, Sous-titre & Navigation
+    private func homeContent() -> some View {
+        VStack(spacing: 25) {
+            Spacer().frame(height: 50) // Ajustement de l’espace en haut
+            
+            // 🎨 TITRE & SOUS-TITRE
+            VStack(spacing: 5) {
+                Text("Gioia")
+                    .font(.custom("Futura-Bold", size: 42)) // Ajustement pour iPhone
+                    .foregroundColor(.white)
+                    .shadow(color: Color.black.opacity(0.2), radius: 4, x: 2, y: 2)
+                
+                Text("Modern Fashion Experience")
+                    .font(.custom("Futura", size: 20))
+                    .foregroundColor(Color.white.opacity(0.95))
+            }
+            
+            // 🏷 "Carte" de Boutons (Dressing & Avatar)
+            VStack(spacing: 15) {
+                NavigationLink(destination: DressingItemListView()) {
+                    AnimatedButtonLabel(
+                        iconName: "bag.fill",
+                        text: "Dressing"
+                    )
+                }
+                
+                NavigationLink(destination: AvatarView(navigationPath: $navigationPath)) {  // ✅ Correction ici
+                    AnimatedButtonLabel(
+                        iconName: "person.crop.circle",
+                        text: "Avatar"
+                    )
+                }
+            }
+            .padding(20)
+            .background(GlassBackgroundView()) // Effet de verre
+            .cornerRadius(24)
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.3), radius: 6, x: 0, y: 3)
+            .padding(.horizontal, 30)
+            
+            Spacer()
+        }
+    }
 }
+
+
 
 // MARK: - FLUID BACKGROUND VIEW (BLOBS + PARTICULES)
 // Remplace simplement ta struct FluidBackgroundView

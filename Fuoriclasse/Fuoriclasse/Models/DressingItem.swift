@@ -39,6 +39,7 @@ extension DressingItem {
     @NSManaged public var category: String
     @NSManaged public var size: String
     @NSManaged public var color: String
+    @NSManaged public var brand: String
     @NSManaged public var image: Data?
     @NSManaged public var dotClass: String
     @NSManaged public var additionalInfo: String
@@ -62,3 +63,4 @@ struct DressingItemDTO: Codable {
     var dotClass: String
     var additionalInfo: String
 }
+

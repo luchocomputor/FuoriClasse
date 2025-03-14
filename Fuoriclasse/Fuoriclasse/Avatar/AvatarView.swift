@@ -1,18 +1,13 @@
-//
-//  AvatarView.swift
-//  Fuoriclasse
-//
-//  Created by Louis Almairac on 05/03/2025.
-//
 import SwiftUI
 
 struct AvatarView: View {
     @StateObject var avatarManager = AvatarManager()
     @Binding var navigationPath: NavigationPath
+    @State private var selectedAvatar: String = "lucho3" // ✅ Avatar par défaut
 
     var body: some View {
         ZStack {
-            // 🔹 1. Fond Radial (violet) identique à HomeView
+            // 🔹 1. Fond Radial (violet)
             RadialGradient(
                 gradient: Gradient(colors: [
                     Color(red: 40/255, green: 10/255, blue: 90/255),
@@ -24,23 +19,49 @@ struct AvatarView: View {
             )
             .ignoresSafeArea()
 
-            // 🔹 2. Effets fluides (blobs, particules)
+            // 🔹 2. Effets fluides
             FluidBackgroundView()
 
-            // 🔹 3. Avatar directement intégré sans cadre blanc
-            Avatar3DView()
-                .frame(maxWidth: .infinity, maxHeight: 500) // 🔥 Reduce height for a better layout
-                .offset(y: -50) // 🔥 Adjust vertical positioning slightly
+            // 🔹 3. Affichage de l’avatar 3D avec l’avatar sélectionné
+            Avatar3DView(avatarManager: avatarManager)
+                .frame(maxWidth: .infinity, maxHeight: 500)
+                .offset(y: -50)
                 .ignoresSafeArea()
 
-            // 🔹 4. Bouton flottant en bas
+            // 🔹 4. Sélection de l’avatar
             VStack {
                 Spacer()
+                
+                Text("Choisir un Avatar")
+                    .font(.title3)
+                    .foregroundColor(.white)
+                    .padding(.bottom, 10)
+
+                HStack(spacing: 20) {
+                    Button("Avatar 1") {
+                        selectedAvatar = "lucho3"
+                        avatarManager.fetchAvatar(fileName: selectedAvatar) // ✅ Change l’avatar localement
+                    }
+                    .padding()
+                    .background(selectedAvatar == "lucho3" ? Color.blue.opacity(0.3) : Color.white.opacity(0.15))
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+
+                    Button("Avatar 2") {
+                        selectedAvatar = "lucho3"
+                        avatarManager.fetchAvatar(fileName: selectedAvatar)
+                    }
+                    .padding()
+                    .background(selectedAvatar == "lucho3" ? Color.blue.opacity(0.3) : Color.white.opacity(0.15))
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                }
+
                 Button("Changer d'Avatar") {
-                    avatarManager.fetchAvatar()
+                    avatarManager.fetchAvatar(fileName: selectedAvatar) // ✅ Recharge l’avatar sélectionné
                 }
                 .padding()
-                .background(Color.white.opacity(0.15)) // Transparence légère
+                .background(Color.white.opacity(0.15))
                 .foregroundColor(.white)
                 .cornerRadius(10)
                 .overlay(
@@ -52,7 +73,7 @@ struct AvatarView: View {
             }
         }
         .onAppear {
-            avatarManager.fetchAvatar()
+            avatarManager.fetchAvatar(fileName: selectedAvatar) // ✅ Charge l’avatar par défaut au démarrage
         }
         .navigationTitle("Mon Avatar")
     }

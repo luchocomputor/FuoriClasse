@@ -2,6 +2,7 @@ import UIKit
 import SwiftUI
 
 class MainTabBarController: UITabBarController {
+    @State private var navigationPath = NavigationPath() // ✅ Ajout du @State
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -15,9 +16,10 @@ class MainTabBarController: UITabBarController {
                 title: "Dressing", icon: "hanger"
             ),
             configureNav(
-                UIHostingController(rootView: AvatarView(navigationPath: .constant(NavigationPath()))),
+                UIHostingController(rootView: AvatarView(navigationPath: $navigationPath)),
                 title: "Avatar", icon: "person.circle.fill"
-            ),
+            )
+,
             configureNav(StyleAdvisorViewController(), title: "Conseils", icon: "message.circle"),
             configureNav(ProfileViewController(), title: "Profil", icon: "person.crop.circle")
         ]

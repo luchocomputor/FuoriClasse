@@ -10,19 +10,19 @@ struct AvatarSelectionView: View {
     @StateObject var avatarManager = AvatarManager()
     
     var body: some View {
-        VStack {
-            Text("Sélectionne ton Avatar")
-                .font(.title)
-                .padding()
-            
-            Button("Avatar 1") {
-                avatarManager.avatarURL = URL(string: "https://api.readyplayer.me/v1/avatars/user1.glb")
+            VStack {
+                Text("Sélectionne ton Avatar")
+                    .font(.title)
+                    .padding()
+                
+                Button("Avatar 1") {
+                    avatarManager.fetchAvatar(fileName: "lucho3") // 🎯 Charge avatar1.usdz
+                }
+                
+                Button("Avatar 2") {
+                    avatarManager.fetchAvatar(fileName: "lucho3") // 🎯 Charge avatar2.glb
+                }
             }
-            
-            Button("Avatar 2") {
-                avatarManager.avatarURL = URL(string: "https://api.readyplayer.me/v1/avatars/user2.glb")
-            }
+            .navigationTitle("Choisir Avatar")
         }
-        .navigationTitle("Choisir Avatar")
-    }
 }

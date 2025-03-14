@@ -2,55 +2,51 @@ import SwiftUI
 import SceneKit
 
 struct Avatar3DView: UIViewRepresentable {
+    @ObservedObject var avatarManager: AvatarManager  // ✅ Instance pour récupérer l'URL du modèle
+
     func makeUIView(context: Context) -> SCNView {
         let scnView = SCNView()
         let scene = SCNScene()
-        
-        // Charger le modèle MyAvatar.usdz
-        if let avatarNode = load3DModel() {
-            avatarNode.scale = SCNVector3(0.5, 0.5, 0.5) // Ajuste la taille
-            avatarNode.position = SCNVector3(0, 0.5, 0) // 🔥 Remonte l'avatar
+
+        if let avatarNode = load3DModel() {  // ✅ Suppression de l'argument incorrect
             scene.rootNode.addChildNode(avatarNode)
         }
-        
-        // Configuration de la SCNView
+
         scnView.scene = scene
-        scnView.allowsCameraControl = true  // Permet les déplacements
-        scnView.autoenablesDefaultLighting = true // Lumière par défaut
-        scnView.backgroundColor = UIColor.clear // Supprime le fond blanc
-        
+        scnView.allowsCameraControl = true
+        scnView.autoenablesDefaultLighting = true
+        scnView.backgroundColor = UIColor.clear
+
         return scnView
     }
-    
+
     func updateUIView(_ uiView: SCNView, context: Context) {
-        print("🔄 Mise à jour de SCNView")
-        
-        // Suppression des anciens nodes
         uiView.scene?.rootNode.childNodes.forEach { $0.removeFromParentNode() }
-        
-        if let avatarNode = load3DModel() {
-            avatarNode.scale = SCNVector3(0.8, 0.8, 0.8) // Ajuste la taille
-            avatarNode.position = SCNVector3(0, -0.5, 0) // 🔥 Assure que l'avatar est bien remonté
+
+        if let avatarNode = load3DModel() {  // ✅ Suppression de l'argument incorrect
             uiView.scene?.rootNode.addChildNode(avatarNode)
         }
     }
-    
+
     private func load3DModel() -> SCNNode? {
-        guard let url = Bundle.main.url(forResource: "MyAvatar", withExtension: "usdz") else {
+        guard let url = Bundle.main.url(forResource: "lucho3", withExtension: "usdz") else {
             print("❌ Impossible de trouver le modèle 3D local")
             return nil
         }
 
-        let scene = try? SCNScene(url: url, options: nil)
-        let avatarNode = scene?.rootNode
+        print("✅ Avatar trouvé : \(url)")
 
-        // 🔥 Reduce avatar size
-        avatarNode?.scale = SCNVector3(0.6, 0.6, 0.6) // Shrinks the avatar to 60% of its original size
+        guard let scene = try? SCNScene(url: url, options: nil) else {
+            print("❌ Échec du chargement de la scène 3D")
+            return nil
+        }
 
-        // 🔥 Ensure the avatar is properly positioned
-        avatarNode?.position = SCNVector3(0, -0.2, 0) // Moves avatar slightly lower to fit better
+        let avatarNode = scene.rootNode.clone()  // ✅ Suppression de "guard let"
+        print("✅ Modèle chargé avec succès, nombre de childNodes : \(avatarNode.childNodes.count)")
+
+        avatarNode.scale = SCNVector3(0.6, 0.6, 0.6)
+        avatarNode.position = SCNVector3(0, -0.2, 0)
 
         return avatarNode
     }
-
 }
