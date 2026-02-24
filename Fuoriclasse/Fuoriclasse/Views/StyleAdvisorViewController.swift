@@ -41,55 +41,55 @@ struct StyleAdvisorView: View {
                 .ignoresSafeArea()
                 FluidBackgroundView().ignoresSafeArea()
 
-                // — Messages —
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 14) {
-                            if messages.isEmpty {
-                                emptyStateView
+                // — Layout principal —
+                VStack(spacing: 0) {
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 14) {
+                                if messages.isEmpty {
+                                    emptyStateView
+                                }
+                                ForEach(messages) { msg in
+                                    MessageBubble(message: msg)
+                                        .id(msg.id)
+                                        .transition(.asymmetric(
+                                            insertion: .move(edge: msg.role == .user ? .trailing : .leading)
+                                                .combined(with: .opacity),
+                                            removal: .opacity
+                                        ))
+                                }
+                                if isLoading {
+                                    loadingBubble
+                                        .id("loading")
+                                        .transition(.move(edge: .leading).combined(with: .opacity))
+                                }
+                                if let err = errorMessage {
+                                    Text(err)
+                                        .font(.caption)
+                                        .foregroundColor(.red.opacity(0.9))
+                                        .padding(.horizontal, 20).padding(.vertical, 8)
+                                        .background(Color.red.opacity(0.1))
+                                        .cornerRadius(10)
+                                        .padding(.horizontal, 20)
+                                }
+                                Color.clear.frame(height: 8).id("bottom")
                             }
-                            ForEach(messages) { msg in
-                                MessageBubble(message: msg)
-                                    .id(msg.id)
-                                    .transition(.asymmetric(
-                                        insertion: .move(edge: msg.role == .user ? .trailing : .leading)
-                                            .combined(with: .opacity),
-                                        removal: .opacity
-                                    ))
-                            }
-                            if isLoading {
-                                loadingBubble
-                                    .id("loading")
-                                    .transition(.move(edge: .leading).combined(with: .opacity))
-                            }
-                            if let err = errorMessage {
-                                Text(err)
-                                    .font(.caption)
-                                    .foregroundColor(.red.opacity(0.9))
-                                    .padding(.horizontal, 20).padding(.vertical, 8)
-                                    .background(Color.red.opacity(0.1))
-                                    .cornerRadius(10)
-                                    .padding(.horizontal, 20)
-                            }
-                            Color.clear.frame(height: 8).id("bottom")
+                            .padding(.top, 16)
+                            .animation(.spring(response: 0.45, dampingFraction: 0.8), value: messages.count)
+                            .animation(.spring(response: 0.45, dampingFraction: 0.8), value: isLoading)
                         }
-                        .padding(.top, 16)
-                        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: messages.count)
-                        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: isLoading)
+                        .scrollDismissesKeyboard(.immediately)
+                        .onTapGesture { isInputFocused = false }
+                        .onChange(of: messages.count) { _ in
+                            withAnimation(.spring(response: 0.3)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                        }
+                        .onChange(of: isLoading) { _ in
+                            withAnimation(.spring(response: 0.3)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                        }
                     }
-                    .scrollDismissesKeyboard(.immediately)
-                    .onTapGesture { isInputFocused = false }
-                    .onChange(of: messages.count) { _ in
-                        withAnimation(.spring(response: 0.3)) { proxy.scrollTo("bottom", anchor: .bottom) }
-                    }
-                    .onChange(of: isLoading) { _ in
-                        withAnimation(.spring(response: 0.3)) { proxy.scrollTo("bottom", anchor: .bottom) }
-                    }
+
+                    inputBar
                 }
-            }
-            // ← clé : l'input bar reste collée au-dessus du clavier
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                inputBar
             }
             .navigationTitle("Conseiller Mode")
             .navigationBarTitleDisplayMode(.inline)
@@ -271,20 +271,16 @@ struct StyleAdvisorView: View {
             .padding(.vertical, 10)
             .background(
                 RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .fill(Color.white.opacity(0.08))
-                    .background(
-                        RoundedRectangle(cornerRadius: 26, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
+                    .fill(Color(red: 30/255, green: 12/255, blue: 60/255))
                     .overlay(
                         RoundedRectangle(cornerRadius: 26, style: .continuous)
-                            .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
                     )
-                    .shadow(color: Color.black.opacity(0.25), radius: 12, x: 0, y: 4)
             )
             .padding(.horizontal, 16)
         }
         .padding(.vertical, 10)
+        .background(Color(red: 12/255, green: 4/255, blue: 28/255))
     }
 
     private var canSend: Bool {
