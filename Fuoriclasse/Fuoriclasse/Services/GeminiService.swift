@@ -71,10 +71,24 @@ final class GeminiService {
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            let raw = String(data: data, encoding: .utf8) ?? "unknown error"
-            throw NSError(domain: "GeminiService", code: (response as? HTTPURLResponse)?.statusCode ?? -1,
-                          userInfo: [NSLocalizedDescriptionKey: raw])
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        guard statusCode == 200 else {
+            // Essaye d'extraire le message lisible depuis le JSON d'erreur Gemini
+            let friendly: String
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let err = json["error"] as? [String: Any],
+               let msg = err["message"] as? String {
+                switch statusCode {
+                case 429: friendly = "Quota dépassé. Réessayez dans quelques instants."
+                case 401, 403: friendly = "Clé API invalide. Vérifiez Secrets.plist."
+                case 400: friendly = "Requête invalide : \(msg.prefix(80))"
+                default:   friendly = "Erreur \(statusCode) : \(msg.prefix(100))"
+                }
+            } else {
+                friendly = "Erreur réseau (\(statusCode))."
+            }
+            throw NSError(domain: "GeminiService", code: statusCode,
+                          userInfo: [NSLocalizedDescriptionKey: friendly])
         }
 
         guard

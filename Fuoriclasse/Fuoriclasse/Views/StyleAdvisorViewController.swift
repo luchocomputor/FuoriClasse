@@ -16,6 +16,7 @@ struct StyleAdvisorView: View {
     @State private var isLoading = false
     @State private var showPhotoPicker = false
     @State private var errorMessage: String? = nil
+    @State private var showError = false
     @FocusState private var isInputFocused: Bool
 
     private var wardrobeContext: String {
@@ -31,6 +32,13 @@ struct StyleAdvisorView: View {
             VStack(spacing: 0) {
                 messagesList
                 inputBar
+            }
+            .overlay(alignment: .top) {
+                if showError, let msg = errorMessage {
+                    ErrorToast(message: msg)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 8)
+                }
             }
             // Le fond est en .background pour NE PAS affecter
             // le layout du VStack — celui-ci reste dans la safe area
@@ -86,15 +94,6 @@ struct StyleAdvisorView: View {
                     }
                     if isLoading {
                         loadingBubble.id("loading")
-                    }
-                    if let err = errorMessage {
-                        Text(err)
-                            .font(.caption)
-                            .foregroundColor(.red.opacity(0.9))
-                            .padding(10)
-                            .background(Color.red.opacity(0.12))
-                            .cornerRadius(8)
-                            .padding(.horizontal)
                     }
                     Color.clear.frame(height: 1).id("bottom")
                 }
@@ -310,8 +309,13 @@ struct StyleAdvisorView: View {
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = "Erreur : \(error.localizedDescription)"
+                    errorMessage = error.localizedDescription
                     isLoading = false
+                    withAnimation(.spring(response: 0.4)) { showError = true }
+                    Task {
+                        try? await Task.sleep(nanoseconds: 4_000_000_000)
+                        withAnimation(.spring(response: 0.4)) { showError = false }
+                    }
                 }
             }
         }
@@ -387,6 +391,33 @@ struct MessageBubble: View {
                         .font(.system(size: 10)).foregroundColor(.white))
             }
         }
+    }
+}
+
+// MARK: - Toast d'erreur
+
+struct ErrorToast: View {
+    let message: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundColor(.red.opacity(0.9))
+            Text(message)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.white)
+                .lineLimit(2)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color(red: 40/255, green: 8/255, blue: 8/255).opacity(0.95))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+        .padding(.horizontal, 20)
     }
 }
 
