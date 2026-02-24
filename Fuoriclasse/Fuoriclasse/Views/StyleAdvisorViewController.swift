@@ -1,8 +1,6 @@
 import SwiftUI
 import CoreData
 
-// MARK: - StyleAdvisorView
-
 struct StyleAdvisorView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
@@ -13,10 +11,10 @@ struct StyleAdvisorView: View {
     private var wardrobe: FetchedResults<DressingItem>
 
     @State private var messages: [ChatMessage] = []
-    @State private var inputText: String = ""
+    @State private var inputText = ""
     @State private var selectedImageData: Data? = nil
-    @State private var isLoading: Bool = false
-    @State private var showPhotoPicker: Bool = false
+    @State private var isLoading = false
+    @State private var showPhotoPicker = false
     @State private var errorMessage: String? = nil
     @FocusState private var isInputFocused: Bool
 
@@ -27,130 +25,137 @@ struct StyleAdvisorView: View {
 
     var body: some View {
         NavigationStack {
+            // Le ZStack met le background en couche basse.
+            // Le VStack (messages + inputBar) occupe tout l'espace disponible
+            // et remonte naturellement quand le clavier apparaît.
             ZStack {
-                // — Background —
+                // ── Fond ──────────────────────────────────────────
                 RadialGradient(
                     gradient: Gradient(colors: [
                         Color(red: 40/255, green: 10/255, blue: 90/255),
                         Color(red: 15/255, green: 5/255, blue: 40/255)
                     ]),
-                    center: .center,
-                    startRadius: 100,
-                    endRadius: 500
+                    center: .center, startRadius: 100, endRadius: 500
                 )
                 .ignoresSafeArea()
+
                 FluidBackgroundView().ignoresSafeArea()
 
-                // — Layout principal —
+                // ── Contenu ───────────────────────────────────────
                 VStack(spacing: 0) {
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 14) {
-                                if messages.isEmpty {
-                                    emptyStateView
-                                }
-                                ForEach(messages) { msg in
-                                    MessageBubble(message: msg)
-                                        .id(msg.id)
-                                        .transition(.asymmetric(
-                                            insertion: .move(edge: msg.role == .user ? .trailing : .leading)
-                                                .combined(with: .opacity),
-                                            removal: .opacity
-                                        ))
-                                }
-                                if isLoading {
-                                    loadingBubble
-                                        .id("loading")
-                                        .transition(.move(edge: .leading).combined(with: .opacity))
-                                }
-                                if let err = errorMessage {
-                                    Text(err)
-                                        .font(.caption)
-                                        .foregroundColor(.red.opacity(0.9))
-                                        .padding(.horizontal, 20).padding(.vertical, 8)
-                                        .background(Color.red.opacity(0.1))
-                                        .cornerRadius(10)
-                                        .padding(.horizontal, 20)
-                                }
-                                Color.clear.frame(height: 8).id("bottom")
-                            }
-                            .padding(.top, 16)
-                            .animation(.spring(response: 0.45, dampingFraction: 0.8), value: messages.count)
-                            .animation(.spring(response: 0.45, dampingFraction: 0.8), value: isLoading)
-                        }
-                        .scrollDismissesKeyboard(.immediately)
-                        .onTapGesture { isInputFocused = false }
-                        .onChange(of: messages.count) { _ in
-                            withAnimation(.spring(response: 0.3)) { proxy.scrollTo("bottom", anchor: .bottom) }
-                        }
-                        .onChange(of: isLoading) { _ in
-                            withAnimation(.spring(response: 0.3)) { proxy.scrollTo("bottom", anchor: .bottom) }
-                        }
-                    }
-
+                    messagesList
                     inputBar
                 }
             }
             .navigationTitle("Conseiller Mode")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            // Bouton "Fermer" au-dessus du clavier — doit être ici,
+            // pas sur le TextField, pour fonctionner dans un NavigationStack
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Fermer") { isInputFocused = false }
+                        .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255))
+                        .fontWeight(.semibold)
+                }
+            }
             .sheet(isPresented: $showPhotoPicker) {
                 PhotoPicker(photoData: $selectedImageData)
             }
         }
     }
 
-    // MARK: - Empty State
+    // MARK: - Liste des messages
 
-    private var emptyStateView: some View {
-        VStack(spacing: 22) {
-            Spacer().frame(height: 50)
+    private var messagesList: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    if messages.isEmpty {
+                        emptyState
+                    }
+                    ForEach(messages) { msg in
+                        MessageBubble(message: msg)
+                            .id(msg.id)
+                            .transition(.asymmetric(
+                                insertion: .move(edge: msg.role == .user ? .trailing : .leading)
+                                    .combined(with: .opacity),
+                                removal: .opacity
+                            ))
+                    }
+                    if isLoading {
+                        loadingBubble.id("loading")
+                    }
+                    if let err = errorMessage {
+                        Text(err)
+                            .font(.caption)
+                            .foregroundColor(.red.opacity(0.9))
+                            .padding(10)
+                            .background(Color.red.opacity(0.12))
+                            .cornerRadius(8)
+                            .padding(.horizontal)
+                    }
+                    Color.clear.frame(height: 1).id("bottom")
+                }
+                .padding(.vertical, 12)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: messages.count)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isLoading)
+            }
+            // Swipe vers le bas ferme le clavier
+            .scrollDismissesKeyboard(.interactively)
+            .onChange(of: messages.count) { _ in
+                withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+            }
+            .onChange(of: isLoading) { _ in
+                withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+            }
+        }
+    }
 
-            // Icône avec halo
+    // MARK: - État vide
+
+    private var emptyState: some View {
+        VStack(spacing: 20) {
+            Spacer().frame(height: 60)
+
             ZStack {
                 Circle()
                     .fill(RadialGradient(
                         colors: [Color.purple.opacity(0.5), .clear],
-                        center: .center, startRadius: 10, endRadius: 60
+                        center: .center, startRadius: 10, endRadius: 55
                     ))
-                    .frame(width: 110, height: 110)
-                    .blur(radius: 14)
-
+                    .frame(width: 100, height: 100)
+                    .blur(radius: 12)
                 Image(systemName: "sparkles")
-                    .font(.system(size: 48, weight: .thin))
+                    .font(.system(size: 46, weight: .thin))
                     .foregroundStyle(LinearGradient(
                         colors: [.white, Color(red: 200/255, green: 150/255, blue: 255/255)],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ))
             }
 
-            // Titre + sous-titre
-            VStack(spacing: 6) {
+            VStack(spacing: 5) {
                 Text("Fuoriclasse")
                     .font(.custom("Futura-Bold", size: 24))
                     .foregroundStyle(LinearGradient(
                         colors: [.white, Color(red: 210/255, green: 170/255, blue: 255/255)],
                         startPoint: .leading, endPoint: .trailing
                     ))
-
                 Text("STYLISTE PERSONNEL")
-                    .font(.system(size: 11, weight: .medium, design: .default))
-                    .foregroundColor(.white.opacity(0.45))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.4))
                     .tracking(2.5)
             }
 
-            // Séparateur
             HStack {
                 Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
-                Image(systemName: "sparkle")
-                    .font(.system(size: 9))
-                    .foregroundColor(.white.opacity(0.25))
+                Image(systemName: "sparkle").font(.system(size: 9)).foregroundColor(.white.opacity(0.2))
                 Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
             }
             .padding(.horizontal, 50)
 
-            // Description
-            Text("Posez une question sur votre dressing,\ndemandez une tenue complète\nou envoyez une photo.")
+            Text("Posez une question sur votre dressing,\ndemandez une tenue ou envoyez une photo.")
                 .font(.system(size: 15, weight: .light))
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
@@ -158,136 +163,122 @@ struct StyleAdvisorView: View {
                 .padding(.horizontal, 36)
         }
         .frame(maxWidth: .infinity)
-        .padding(.bottom, 20)
+        .padding(.bottom, 10)
     }
 
-    // MARK: - Loading Bubble
+    // MARK: - Indicateur de frappe
 
     private var loadingBubble: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            assistantAvatar
+            avatarAssistant
             TypingIndicator()
-                .padding(.horizontal, 18).padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(Color.white.opacity(0.07))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                        )
-                )
-            Spacer(minLength: 60)
+                .padding(.horizontal, 16).padding(.vertical, 12)
+                .background(Color.white.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            Spacer()
         }
         .padding(.horizontal, 16)
     }
 
-    private var assistantAvatar: some View {
+    private var avatarAssistant: some View {
         Circle()
             .fill(LinearGradient(
                 colors: [Color(red: 130/255, green: 70/255, blue: 210/255),
                          Color(red: 60/255, green: 20/255, blue: 120/255)],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             ))
-            .frame(width: 28, height: 28)
-            .overlay(Image(systemName: "sparkles").font(.system(size: 11)).foregroundColor(.white))
+            .frame(width: 26, height: 26)
+            .overlay(Image(systemName: "sparkles").font(.system(size: 10)).foregroundColor(.white))
     }
 
-    // MARK: - Input Bar
+    // MARK: - Barre de saisie (style Claude / Gemini)
 
     private var inputBar: some View {
-        VStack(spacing: 8) {
-            // Aperçu photo
-            if let data = selectedImageData, let img = UIImage(data: data) {
-                HStack(spacing: 10) {
-                    Image(uiImage: img)
-                        .resizable().scaledToFill()
-                        .frame(width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1))
-                    Text("Photo jointe")
-                        .font(.caption).foregroundColor(.white.opacity(0.6))
-                    Spacer()
-                    Button { withAnimation(.spring()) { selectedImageData = nil } } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title3).foregroundColor(.white.opacity(0.4))
-                    }
-                }
-                .padding(.horizontal, 16)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+        VStack(spacing: 0) {
+            // Ligne de séparation nette
+            Rectangle()
+                .fill(Color.white.opacity(0.1))
+                .frame(height: 1)
 
-            // Capsule de saisie flottante
-            HStack(spacing: 10) {
-                Button { showPhotoPicker = true } label: {
-                    Image(systemName: selectedImageData != nil ? "photo.fill" : "photo")
-                        .font(.system(size: 18))
-                        .foregroundStyle(selectedImageData != nil
-                            ? LinearGradient(colors: [Color(red: 190/255, green: 130/255, blue: 255/255), .purple],
-                                             startPoint: .topLeading, endPoint: .bottomTrailing)
-                            : LinearGradient(colors: [.white.opacity(0.4), .white.opacity(0.4)],
-                                             startPoint: .topLeading, endPoint: .bottomTrailing)
-                        )
-                        .frame(width: 34, height: 34)
-                }
-
-                TextField("Message…", text: $inputText, axis: .vertical)
-                    .lineLimit(1...5)
-                    .font(.system(size: 15, weight: .light))
-                    .foregroundColor(.white)
-                    .tint(Color(red: 180/255, green: 120/255, blue: 255/255))
-                    .focused($isInputFocused)
-                    .toolbar {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            Spacer()
-                            Button("Fermer") { isInputFocused = false }
-                                .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255))
-                                .fontWeight(.medium)
+            VStack(spacing: 8) {
+                // Aperçu photo si sélectionnée
+                if let data = selectedImageData, let img = UIImage(data: data) {
+                    HStack(spacing: 10) {
+                        Image(uiImage: img)
+                            .resizable().scaledToFill()
+                            .frame(width: 42, height: 42)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        Text("Photo jointe")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.6))
+                        Spacer()
+                        Button {
+                            withAnimation(.spring(response: 0.3)) { selectedImageData = nil }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.white.opacity(0.4))
                         }
                     }
-
-                Button(action: sendMessage) {
-                    ZStack {
-                        Circle()
-                            .fill(canSend
-                                ? LinearGradient(
-                                    colors: [Color(red: 150/255, green: 90/255, blue: 230/255),
-                                             Color(red: 80/255, green: 30/255, blue: 160/255)],
-                                    startPoint: .topLeading, endPoint: .bottomTrailing)
-                                : LinearGradient(colors: [.white.opacity(0.07), .white.opacity(0.07)],
-                                                 startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
-                            .frame(width: 34, height: 34)
-                            .shadow(color: canSend ? Color.purple.opacity(0.4) : .clear, radius: 6, x: 0, y: 2)
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(canSend ? .white : .white.opacity(0.2))
-                    }
-                    .animation(.spring(response: 0.3), value: canSend)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .disabled(!canSend)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .fill(Color(red: 30/255, green: 12/255, blue: 60/255))
+
+                // Ligne principale : bouton photo + champ + bouton envoi
+                HStack(alignment: .bottom, spacing: 10) {
+                    // Bouton photo
+                    Button { showPhotoPicker = true } label: {
+                        Image(systemName: selectedImageData != nil ? "photo.fill" : "photo")
+                            .font(.system(size: 20))
+                            .foregroundColor(selectedImageData != nil
+                                ? Color(red: 180/255, green: 120/255, blue: 255/255)
+                                : .white.opacity(0.5))
+                            .frame(width: 36, height: 36)
+                    }
+
+                    // Champ de texte avec fond gris — même pattern que Claude/Gemini
+                    HStack(alignment: .bottom, spacing: 6) {
+                        TextField("Message…", text: $inputText, axis: .vertical)
+                            .focused($isInputFocused)
+                            .lineLimit(1...6)
+                            .font(.system(size: 16))
+                            .foregroundColor(.white)
+                            .tint(Color(red: 180/255, green: 120/255, blue: 255/255))
+
+                        // Bouton envoi à l'intérieur du champ (iMessage / Claude style)
+                        Button(action: sendMessage) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 30))
+                                .foregroundColor(canSend
+                                    ? Color(red: 160/255, green: 100/255, blue: 240/255)
+                                    : .white.opacity(0.2))
+                        }
+                        .disabled(!canSend)
+                        .animation(.spring(response: 0.25), value: canSend)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 26, style: .continuous)
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .stroke(Color.white.opacity(0.15), lineWidth: 1)
                     )
-            )
-            .padding(.horizontal, 16)
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 10)
+                .padding(.top, 8)
+            }
         }
-        .padding(.vertical, 10)
-        .background(Color(red: 12/255, green: 4/255, blue: 28/255))
+        // Fond solide et opaque — toujours visible
+        .background(Color(red: 18/255, green: 6/255, blue: 40/255))
     }
 
     private var canSend: Bool {
         (!inputText.trimmingCharacters(in: .whitespaces).isEmpty || selectedImageData != nil) && !isLoading
     }
 
-    // MARK: - Send
+    // MARK: - Envoi
 
     private func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespaces)
@@ -327,7 +318,7 @@ struct StyleAdvisorView: View {
     }
 }
 
-// MARK: - MessageBubble
+// MARK: - Bulle de message
 
 struct MessageBubble: View {
     let message: ChatMessage
@@ -336,9 +327,9 @@ struct MessageBubble: View {
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
             if isUser {
-                Spacer(minLength: 55)
+                Spacer(minLength: 60)
             } else {
-                assistantBadge
+                avatarView
             }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 6) {
@@ -346,84 +337,75 @@ struct MessageBubble: View {
                     Image(uiImage: img)
                         .resizable().scaledToFit()
                         .frame(maxWidth: 220)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1))
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
 
                 if !message.text.isEmpty {
                     Text(message.text)
-                        .font(.system(size: 15, weight: .light))
+                        .font(.system(size: 15))
                         .foregroundColor(.white)
-                        .lineSpacing(4)
-                        .padding(.horizontal, 14).padding(.vertical, 11)
-                        .background(bubbleFill)
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(Color.white.opacity(isUser ? 0.18 : 0.08), lineWidth: 1)
+                        .lineSpacing(3)
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .background(isUser
+                            ? AnyView(LinearGradient(
+                                colors: [Color(red: 110/255, green: 55/255, blue: 195/255),
+                                         Color(red: 70/255, green: 25/255, blue: 140/255)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            ))
+                            : AnyView(Color.white.opacity(0.08))
                         )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
             }
 
             if !isUser {
-                Spacer(minLength: 55)
+                Spacer(minLength: 60)
             } else {
-                userBadge
+                avatarView
             }
         }
         .padding(.horizontal, 14)
     }
 
-    @ViewBuilder
-    private var bubbleFill: some View {
-        if isUser {
-            LinearGradient(
-                colors: [Color(red: 110/255, green: 55/255, blue: 195/255).opacity(0.85),
-                         Color(red: 65/255, green: 22/255, blue: 130/255).opacity(0.75)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            )
-        } else {
-            Color.white.opacity(0.07)
+    private var avatarView: some View {
+        Group {
+            if isUser {
+                Circle()
+                    .fill(Color.white.opacity(0.12))
+                    .frame(width: 26, height: 26)
+                    .overlay(Image(systemName: "person.fill")
+                        .font(.system(size: 12)).foregroundColor(.white.opacity(0.6)))
+            } else {
+                Circle()
+                    .fill(LinearGradient(
+                        colors: [Color(red: 130/255, green: 70/255, blue: 210/255),
+                                 Color(red: 60/255, green: 20/255, blue: 120/255)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ))
+                    .frame(width: 26, height: 26)
+                    .overlay(Image(systemName: "sparkles")
+                        .font(.system(size: 10)).foregroundColor(.white))
+            }
         }
-    }
-
-    private var assistantBadge: some View {
-        Circle()
-            .fill(LinearGradient(
-                colors: [Color(red: 130/255, green: 70/255, blue: 210/255),
-                         Color(red: 60/255, green: 20/255, blue: 120/255)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            ))
-            .frame(width: 28, height: 28)
-            .overlay(Image(systemName: "sparkles").font(.system(size: 11)).foregroundColor(.white))
-    }
-
-    private var userBadge: some View {
-        Circle()
-            .fill(Color.white.opacity(0.12))
-            .frame(width: 28, height: 28)
-            .overlay(Image(systemName: "person.fill").font(.system(size: 13)).foregroundColor(.white.opacity(0.65)))
     }
 }
 
-// MARK: - TypingIndicator
+// MARK: - Indicateur de frappe
 
 struct TypingIndicator: View {
     @State private var active = false
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             ForEach(0..<3) { i in
                 Circle()
-                    .fill(Color.white.opacity(0.75))
+                    .fill(Color.white.opacity(0.7))
                     .frame(width: 6, height: 6)
-                    .scaleEffect(active ? 1.0 : 0.45)
-                    .opacity(active ? 1.0 : 0.25)
+                    .scaleEffect(active ? 1.0 : 0.4)
                     .animation(
-                        .easeInOut(duration: 0.55)
+                        .easeInOut(duration: 0.5)
                             .repeatForever(autoreverses: true)
-                            .delay(Double(i) * 0.18),
+                            .delay(Double(i) * 0.15),
                         value: active
                     )
             }
