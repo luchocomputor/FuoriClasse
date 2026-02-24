@@ -51,16 +51,4 @@ extension DressingItem {
     }
 }
 
-// MARK: - DTO (facultatif si vous en avez besoin en JSON)
-struct DressingItemDTO: Codable {
-    var id: UUID
-    var title: String
-    var category: String
-    var size: String
-    var color: String
-    var brand: String
-    var image: Data?
-    var dotClass: String
-    var additionalInfo: String
-}
 

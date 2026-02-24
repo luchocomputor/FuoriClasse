@@ -17,7 +17,7 @@ struct BlurView: UIViewRepresentable {
 
 struct DressingItemEditView: View {
     @Binding var isPresented: Bool
-    var dto: DressingItemDTO
+    var item: DressingItem
 
     @State private var title: String
     @State private var category: String
@@ -28,17 +28,17 @@ struct DressingItemEditView: View {
     @State private var dotClass: String
     @State private var imageData: Data?
 
-    init(isPresented: Binding<Bool>, dto: DressingItemDTO) {
+    init(isPresented: Binding<Bool>, item: DressingItem) {
         self._isPresented = isPresented
-        self._title = State(initialValue: dto.title)
-        self._category = State(initialValue: dto.category)
-        self._size = State(initialValue: dto.size)
-        self._color = State(initialValue: dto.color)
-        self._brand = State(initialValue: dto.brand)
-        self._additionalInfo = State(initialValue: dto.additionalInfo)
-        self._dotClass = State(initialValue: dto.dotClass)
-        self._imageData = State(initialValue: dto.image)
-        self.dto = dto
+        self.item = item
+        self._title = State(initialValue: item.title)
+        self._category = State(initialValue: item.category)
+        self._size = State(initialValue: item.size)
+        self._color = State(initialValue: item.color)
+        self._brand = State(initialValue: item.brand)
+        self._additionalInfo = State(initialValue: item.additionalInfo)
+        self._dotClass = State(initialValue: item.dotClass)
+        self._imageData = State(initialValue: item.image)
     }
 
     var body: some View {
@@ -99,14 +99,16 @@ struct DressingItemEditView: View {
     }
 
     private func saveChanges() {
-        let updatedDTO = DressingItemDTO(
-            id: dto.id, title: title, category: category,
-            size: size, color: color, brand: brand,
-            image: imageData, dotClass: dotClass, additionalInfo: additionalInfo
-        )
-
+        item.title = title
+        item.category = category
+        item.size = size
+        item.color = color
+        item.brand = brand
+        item.image = imageData
+        item.dotClass = dotClass
+        item.additionalInfo = additionalInfo
         withAnimation {
-            Persistence.shared.updateItem(updatedItem: updatedDTO)
+            CoreDataController.shared.save()
             isPresented = false
         }
     }

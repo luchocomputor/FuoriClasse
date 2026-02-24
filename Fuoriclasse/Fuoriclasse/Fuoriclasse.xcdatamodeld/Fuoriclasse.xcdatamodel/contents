@@ -2,6 +2,7 @@
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23605" systemVersion="24A348" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
     <entity name="DressingItem" representedClassName="DressingItem" syncable="YES">
         <attribute name="additionalInfo" optional="YES" attributeType="String"/>
+        <attribute name="brand" optional="YES" attributeType="String"/>
         <attribute name="category" optional="YES" attributeType="String"/>
         <attribute name="color" optional="YES" attributeType="String"/>
         <attribute name="dotClass" optional="YES" attributeType="String"/>

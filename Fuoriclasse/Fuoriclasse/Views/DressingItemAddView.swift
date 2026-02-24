@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DressingItemAddView: View {
     @Binding var isPresented: Bool
+    @Environment(\.managedObjectContext) private var context
     
     @State private var title = ""
     @State private var brand = ""
@@ -117,18 +118,17 @@ struct DressingItemAddView: View {
     
     // 🎯 Création de l’item
     private func createItem() {
-        let newDTO = DressingItemDTO(
-            id: UUID(),
-            title: title,
-            category: category,
-            size: category == "Chaussures" ? "\(selectedShoeSize)" : size,
-            color: color,
-            brand: brand,
-            image: photoData,
-            dotClass: dotClass.rawValue,
-            additionalInfo: additionalInfo
-        )
-        Persistence.shared.addItem(newDTO)
+        let newItem = DressingItem(context: context)
+        newItem.id = UUID()
+        newItem.title = title
+        newItem.category = category
+        newItem.size = category == "Chaussures" ? "\(selectedShoeSize)" : size
+        newItem.color = color
+        newItem.brand = brand
+        newItem.image = photoData
+        newItem.dotClass = dotClass.rawValue
+        newItem.additionalInfo = additionalInfo
+        CoreDataController.shared.save()
         isPresented = false
     }
     

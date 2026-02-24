@@ -3,10 +3,8 @@ import Foundation
 
 // MARK: - HOME VIEW (Optimisée pour iPhone)
 struct HomeView: View {
-    @State private var navigationPath = NavigationPath()  // ✅ Déclaration correcte
-
     var body: some View {
-        NavigationStack(path: $navigationPath) {
+        NavigationStack {
             ZStack {
                 homeBackground()
                 homeContent()
@@ -59,7 +57,7 @@ struct HomeView: View {
                     )
                 }
                 
-                NavigationLink(destination: AvatarView(navigationPath: $navigationPath)) {  // ✅ Correction ici
+                NavigationLink(destination: AvatarView()) {
                     AnimatedButtonLabel(
                         iconName: "person.crop.circle",
                         text: "Avatar"

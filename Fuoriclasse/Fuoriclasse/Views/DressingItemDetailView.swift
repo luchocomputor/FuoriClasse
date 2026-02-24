@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DressingItemDetailView: View {
-    var dto: DressingItemDTO
+    var item: DressingItem
     @Environment(\.dismiss) private var dismiss
     @State private var showingEdit = false
 
@@ -16,7 +16,7 @@ struct DressingItemDetailView: View {
             FluidBackgroundView()
 
             VStack(spacing: 20) {
-                if let data = dto.image, let uiImage = UIImage(data: data) {
+                if let data = item.image, let uiImage = UIImage(data: data) {
                     Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFill()
@@ -27,17 +27,17 @@ struct DressingItemDetailView: View {
                         .transition(.opacity)
                 }
 
-                Text(dto.title)
+                Text(item.title)
                     .font(.custom("Futura-Bold", size: 28))
                     .foregroundColor(.white)
                     .shadow(radius: 4)
 
                 VStack(spacing: 12) {
-                    DetailGlassRow(label: "Catégorie", value: dto.category)
-                    DetailGlassRow(label: "Taille", value: dto.size)
-                    DetailGlassRow(label: "Couleur", value: dto.color)
-                    DetailGlassRow(label: "Classe", value: dto.dotClass)
-                    Text(dto.additionalInfo)
+                    DetailGlassRow(label: "Catégorie", value: item.category)
+                    DetailGlassRow(label: "Taille", value: item.size)
+                    DetailGlassRow(label: "Couleur", value: item.color)
+                    DetailGlassRow(label: "Classe", value: item.dotClass)
+                    Text(item.additionalInfo)
                         .font(.custom("Futura", size: 16))
                         .foregroundColor(.gray)
                         .padding(.top, 5)
@@ -48,7 +48,7 @@ struct DressingItemDetailView: View {
                     Button(action: { showingEdit = true }) {
                         GlassButtonLabel(iconName: "pencil", text: "Modifier")
                     }
-                    
+
                     Button(action: deleteItem) {
                         GlassButtonLabel(iconName: "trash", text: "Supprimer")
                             .foregroundColor(.red)
@@ -57,18 +57,19 @@ struct DressingItemDetailView: View {
                 .padding(.bottom, 20)
             }
             .sheet(isPresented: $showingEdit) {
-                DressingItemEditView(isPresented: $showingEdit, dto: dto)
+                DressingItemEditView(isPresented: $showingEdit, item: item)
             }
         }
     }
 
     private func deleteItem() {
         withAnimation {
-            Persistence.shared.deleteItem(dto)
+            CoreDataController.shared.delete(item)
             dismiss()
         }
     }
 }
+
 // MARK: - Composants UI
 struct CustomTextField2: View {
     var placeholder: String

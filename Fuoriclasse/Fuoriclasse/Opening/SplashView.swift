@@ -13,7 +13,7 @@ struct SplashView: View {
     
     var body: some View {
         if isActive {
-            HomeView() // Your main HomeView with the dynamic background
+            MainTabView()
         } else {
             ZStack {
                 FluidBackgroundView() // Your animated purple blob background

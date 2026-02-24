@@ -2,8 +2,7 @@ import SwiftUI
 
 struct AvatarView: View {
     @StateObject var avatarManager = AvatarManager()
-    @Binding var navigationPath: NavigationPath
-    @State private var selectedAvatar: String = "lucho3" // ✅ Avatar par défaut
+    @State private var selectedAvatar: String = "lucho3"
 
     var body: some View {
         ZStack {

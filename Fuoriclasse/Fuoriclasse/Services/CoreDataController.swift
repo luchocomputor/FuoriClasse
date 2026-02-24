@@ -1,20 +1,33 @@
 import CoreData
 import Foundation
 
-/// Singleton gérant le conteneur Core Data
 class CoreDataController {
     static let shared = CoreDataController()
-    
+
     let persistentContainer: NSPersistentContainer
     var context: NSManagedObjectContext { persistentContainer.viewContext }
-    
+
     private init() {
-        // Nom du modèle .xcdatamodeld (ex: "FuoriclasseModel")
         persistentContainer = NSPersistentContainer(name: "Fuoriclasse")
-        persistentContainer.loadPersistentStores { description, error in
+        persistentContainer.loadPersistentStores { _, error in
             if let error = error {
-                fatalError("Erreur lors du chargement du store: \(error)")
+                fatalError("Erreur Core Data: \(error)")
             }
         }
+        persistentContainer.viewContext.automaticallyMergesChangesFromParent = true
+    }
+
+    func save() {
+        guard context.hasChanges else { return }
+        do {
+            try context.save()
+        } catch {
+            print("Core Data save error: \(error)")
+        }
+    }
+
+    func delete(_ item: DressingItem) {
+        context.delete(item)
+        save()
     }
 }

@@ -35,9 +35,6 @@
 			membershipExceptions = (
 				Info.plist,
 			);
-			platformFiltersByRelativePath = {
-				Views/DressingItemAddViewController.swift = (ios, maccatalyst, );
-			};
 			target = 78DD70D62D74C5BC00C9CC47 /* Fuoriclasse */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */

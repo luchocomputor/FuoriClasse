@@ -1,16 +1,16 @@
 import SwiftUI
 
 struct DressingItemCard: View {
-    var dto: DressingItemDTO
+    var item: DressingItem
 
     var body: some View {
         HStack {
             VStack(alignment: .center, spacing: 5) {
-                Text(dto.title)
+                Text(item.title)
                     .font(.headline)
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
-                Text(dto.category)
+                Text(item.category)
                     .foregroundColor(.gray)
                     .font(.subheadline)
                     .multilineTextAlignment(.center)
