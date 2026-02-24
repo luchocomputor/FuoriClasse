@@ -18,17 +18,17 @@ struct StyleAdvisorView: View {
     @State private var isLoading: Bool = false
     @State private var showPhotoPicker: Bool = false
     @State private var errorMessage: String? = nil
+    @FocusState private var isInputFocused: Bool
 
     private var wardrobeContext: String {
-        wardrobe.map { item in
-            "- \(item.title) (\(item.category), \(item.color), taille \(item.size), \(item.brand))"
-        }.joined(separator: "\n")
+        wardrobe.map { "- \($0.title) (\($0.category), \($0.color), taille \($0.size), \($0.brand))" }
+            .joined(separator: "\n")
     }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                // Background
+                // — Background —
                 RadialGradient(
                     gradient: Gradient(colors: [
                         Color(red: 40/255, green: 10/255, blue: 90/255),
@@ -39,14 +39,57 @@ struct StyleAdvisorView: View {
                     endRadius: 500
                 )
                 .ignoresSafeArea()
+                FluidBackgroundView().ignoresSafeArea()
 
-                FluidBackgroundView()
-                    .ignoresSafeArea()
-
-                VStack(spacing: 0) {
-                    messagesScrollView
-                    inputBar
+                // — Messages —
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 14) {
+                            if messages.isEmpty {
+                                emptyStateView
+                            }
+                            ForEach(messages) { msg in
+                                MessageBubble(message: msg)
+                                    .id(msg.id)
+                                    .transition(.asymmetric(
+                                        insertion: .move(edge: msg.role == .user ? .trailing : .leading)
+                                            .combined(with: .opacity),
+                                        removal: .opacity
+                                    ))
+                            }
+                            if isLoading {
+                                loadingBubble
+                                    .id("loading")
+                                    .transition(.move(edge: .leading).combined(with: .opacity))
+                            }
+                            if let err = errorMessage {
+                                Text(err)
+                                    .font(.caption)
+                                    .foregroundColor(.red.opacity(0.9))
+                                    .padding(.horizontal, 20).padding(.vertical, 8)
+                                    .background(Color.red.opacity(0.1))
+                                    .cornerRadius(10)
+                                    .padding(.horizontal, 20)
+                            }
+                            Color.clear.frame(height: 8).id("bottom")
+                        }
+                        .padding(.top, 16)
+                        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: messages.count)
+                        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: isLoading)
+                    }
+                    .scrollDismissesKeyboard(.immediately)
+                    .onTapGesture { isInputFocused = false }
+                    .onChange(of: messages.count) { _ in
+                        withAnimation(.spring(response: 0.3)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                    }
+                    .onChange(of: isLoading) { _ in
+                        withAnimation(.spring(response: 0.3)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                    }
                 }
+            }
+            // ← clé : l'input bar reste collée au-dessus du clavier
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                inputBar
             }
             .navigationTitle("Conseiller Mode")
             .navigationBarTitleDisplayMode(.inline)
@@ -57,134 +100,191 @@ struct StyleAdvisorView: View {
         }
     }
 
-    // MARK: - Messages
-
-    private var messagesScrollView: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    if messages.isEmpty {
-                        emptyStateView
-                    }
-                    ForEach(messages) { msg in
-                        MessageBubble(message: msg)
-                            .id(msg.id)
-                    }
-                    if isLoading {
-                        loadingBubble
-                    }
-                    if let err = errorMessage {
-                        Text(err)
-                            .font(.caption)
-                            .foregroundColor(.red.opacity(0.9))
-                            .padding(.horizontal)
-                    }
-                }
-                .padding(.vertical, 12)
-            }
-            .onChange(of: messages.count) { _ in
-                if let last = messages.last {
-                    withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
-                }
-            }
-            .onChange(of: isLoading) { _ in
-                if let last = messages.last {
-                    withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
-                }
-            }
-        }
-    }
+    // MARK: - Empty State
 
     private var emptyStateView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 40))
+        VStack(spacing: 22) {
+            Spacer().frame(height: 50)
+
+            // Icône avec halo
+            ZStack {
+                Circle()
+                    .fill(RadialGradient(
+                        colors: [Color.purple.opacity(0.5), .clear],
+                        center: .center, startRadius: 10, endRadius: 60
+                    ))
+                    .frame(width: 110, height: 110)
+                    .blur(radius: 14)
+
+                Image(systemName: "sparkles")
+                    .font(.system(size: 48, weight: .thin))
+                    .foregroundStyle(LinearGradient(
+                        colors: [.white, Color(red: 200/255, green: 150/255, blue: 255/255)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ))
+            }
+
+            // Titre + sous-titre
+            VStack(spacing: 6) {
+                Text("Fuoriclasse")
+                    .font(.custom("Futura-Bold", size: 24))
+                    .foregroundStyle(LinearGradient(
+                        colors: [.white, Color(red: 210/255, green: 170/255, blue: 255/255)],
+                        startPoint: .leading, endPoint: .trailing
+                    ))
+
+                Text("STYLISTE PERSONNEL")
+                    .font(.system(size: 11, weight: .medium, design: .default))
+                    .foregroundColor(.white.opacity(0.45))
+                    .tracking(2.5)
+            }
+
+            // Séparateur
+            HStack {
+                Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
+                Image(systemName: "sparkle")
+                    .font(.system(size: 9))
+                    .foregroundColor(.white.opacity(0.25))
+                Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
+            }
+            .padding(.horizontal, 50)
+
+            // Description
+            Text("Posez une question sur votre dressing,\ndemandez une tenue complète\nou envoyez une photo.")
+                .font(.system(size: 15, weight: .light))
                 .foregroundColor(.white.opacity(0.5))
-            Text("Bonjour ! Je suis Fuoriclasse,\nvotre styliste personnel.\nPosez-moi une question sur votre dressing.")
-                .font(.custom("Futura", size: 15))
-                .foregroundColor(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
+                .lineSpacing(5)
+                .padding(.horizontal, 36)
         }
-        .padding(.top, 60)
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 20)
     }
 
+    // MARK: - Loading Bubble
+
     private var loadingBubble: some View {
-        HStack {
+        HStack(alignment: .bottom, spacing: 8) {
+            assistantAvatar
             TypingIndicator()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(Color(red: 40/255, green: 10/255, blue: 90/255).opacity(0.6))
-                .cornerRadius(18)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                .padding(.horizontal, 18).padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color.white.opacity(0.07))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        )
                 )
-            Spacer()
+            Spacer(minLength: 60)
         }
         .padding(.horizontal, 16)
+    }
+
+    private var assistantAvatar: some View {
+        Circle()
+            .fill(LinearGradient(
+                colors: [Color(red: 130/255, green: 70/255, blue: 210/255),
+                         Color(red: 60/255, green: 20/255, blue: 120/255)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            ))
+            .frame(width: 28, height: 28)
+            .overlay(Image(systemName: "sparkles").font(.system(size: 11)).foregroundColor(.white))
     }
 
     // MARK: - Input Bar
 
     private var inputBar: some View {
-        VStack(spacing: 0) {
-            if let data = selectedImageData, let uiImage = UIImage(data: data) {
-                HStack {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 60, height: 60)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                        )
-                    Button(action: { selectedImageData = nil }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.white.opacity(0.7))
-                    }
+        VStack(spacing: 8) {
+            // Aperçu photo
+            if let data = selectedImageData, let img = UIImage(data: data) {
+                HStack(spacing: 10) {
+                    Image(uiImage: img)
+                        .resizable().scaledToFill()
+                        .frame(width: 44, height: 44)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1))
+                    Text("Photo jointe")
+                        .font(.caption).foregroundColor(.white.opacity(0.6))
                     Spacer()
+                    Button { withAnimation(.spring()) { selectedImageData = nil } } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3).foregroundColor(.white.opacity(0.4))
+                    }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
+            // Capsule de saisie flottante
             HStack(spacing: 10) {
-                Button(action: { showPhotoPicker = true }) {
+                Button { showPhotoPicker = true } label: {
                     Image(systemName: selectedImageData != nil ? "photo.fill" : "photo")
-                        .font(.title3)
-                        .foregroundColor(selectedImageData != nil ? .purple : .white.opacity(0.7))
-                        .frame(width: 36, height: 36)
+                        .font(.system(size: 18))
+                        .foregroundStyle(selectedImageData != nil
+                            ? LinearGradient(colors: [Color(red: 190/255, green: 130/255, blue: 255/255), .purple],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing)
+                            : LinearGradient(colors: [.white.opacity(0.4), .white.opacity(0.4)],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                        .frame(width: 34, height: 34)
                 }
 
-                TextField("Votre question…", text: $inputText, axis: .vertical)
-                    .lineLimit(1...4)
-                    .font(.custom("Futura", size: 15))
+                TextField("Message…", text: $inputText, axis: .vertical)
+                    .lineLimit(1...5)
+                    .font(.system(size: 15, weight: .light))
                     .foregroundColor(.white)
-                    .tint(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.white.opacity(0.12))
-                    .cornerRadius(20)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                    )
+                    .tint(Color(red: 180/255, green: 120/255, blue: 255/255))
+                    .focused($isInputFocused)
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Fermer") { isInputFocused = false }
+                                .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255))
+                                .fontWeight(.medium)
+                        }
+                    }
 
                 Button(action: sendMessage) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(canSend ? .white : .white.opacity(0.3))
+                    ZStack {
+                        Circle()
+                            .fill(canSend
+                                ? LinearGradient(
+                                    colors: [Color(red: 150/255, green: 90/255, blue: 230/255),
+                                             Color(red: 80/255, green: 30/255, blue: 160/255)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing)
+                                : LinearGradient(colors: [.white.opacity(0.07), .white.opacity(0.07)],
+                                                 startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                            .frame(width: 34, height: 34)
+                            .shadow(color: canSend ? Color.purple.opacity(0.4) : .clear, radius: 6, x: 0, y: 2)
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(canSend ? .white : .white.opacity(0.2))
+                    }
+                    .animation(.spring(response: 0.3), value: canSend)
                 }
                 .disabled(!canSend)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(
-                Color(red: 15/255, green: 5/255, blue: 40/255).opacity(0.85)
-                    .ignoresSafeArea(edges: .bottom)
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .fill(Color.white.opacity(0.08))
+                    .background(
+                        RoundedRectangle(cornerRadius: 26, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 26, style: .continuous)
+                            .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                    )
+                    .shadow(color: Color.black.opacity(0.25), radius: 12, x: 0, y: 4)
             )
+            .padding(.horizontal, 16)
         }
+        .padding(.vertical, 10)
     }
 
     private var canSend: Bool {
@@ -198,9 +298,11 @@ struct StyleAdvisorView: View {
         guard !text.isEmpty || selectedImageData != nil else { return }
 
         let userMsg = ChatMessage(role: .user, text: text, imageData: selectedImageData)
-        messages.append(userMsg)
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            messages.append(userMsg)
+        }
 
-        let capturedImageData = selectedImageData
+        let capturedImage = selectedImageData
         inputText = ""
         selectedImageData = nil
         isLoading = true
@@ -211,11 +313,13 @@ struct StyleAdvisorView: View {
                 let reply = try await GeminiService.shared.send(
                     messages: messages,
                     wardrobeContext: wardrobeContext,
-                    imageData: capturedImageData
+                    imageData: capturedImage
                 )
                 await MainActor.run {
-                    messages.append(ChatMessage(role: .assistant, text: reply, imageData: nil))
-                    isLoading = false
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        messages.append(ChatMessage(role: .assistant, text: reply, imageData: nil))
+                        isLoading = false
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -231,68 +335,103 @@ struct StyleAdvisorView: View {
 
 struct MessageBubble: View {
     let message: ChatMessage
-
     var isUser: Bool { message.role == .user }
 
     var body: some View {
-        HStack {
-            if isUser { Spacer(minLength: 50) }
+        HStack(alignment: .bottom, spacing: 8) {
+            if isUser {
+                Spacer(minLength: 55)
+            } else {
+                assistantBadge
+            }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 6) {
-                if let data = message.imageData, let uiImage = UIImage(data: data) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: 200)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                if let data = message.imageData, let img = UIImage(data: data) {
+                    Image(uiImage: img)
+                        .resizable().scaledToFit()
+                        .frame(maxWidth: 220)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1))
                 }
 
                 if !message.text.isEmpty {
                     Text(message.text)
-                        .font(.custom("Futura", size: 15))
+                        .font(.system(size: 15, weight: .light))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(bubbleBackground)
-                        .cornerRadius(18)
+                        .lineSpacing(4)
+                        .padding(.horizontal, 14).padding(.vertical, 11)
+                        .background(bubbleFill)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 18)
-                                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(Color.white.opacity(isUser ? 0.18 : 0.08), lineWidth: 1)
                         )
                 }
             }
 
-            if !isUser { Spacer(minLength: 50) }
+            if !isUser {
+                Spacer(minLength: 55)
+            } else {
+                userBadge
+            }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 14)
     }
 
-    private var bubbleBackground: Color {
-        isUser
-            ? Color.white.opacity(0.2)
-            : Color(red: 40/255, green: 10/255, blue: 90/255).opacity(0.6)
+    @ViewBuilder
+    private var bubbleFill: some View {
+        if isUser {
+            LinearGradient(
+                colors: [Color(red: 110/255, green: 55/255, blue: 195/255).opacity(0.85),
+                         Color(red: 65/255, green: 22/255, blue: 130/255).opacity(0.75)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+        } else {
+            Color.white.opacity(0.07)
+        }
+    }
+
+    private var assistantBadge: some View {
+        Circle()
+            .fill(LinearGradient(
+                colors: [Color(red: 130/255, green: 70/255, blue: 210/255),
+                         Color(red: 60/255, green: 20/255, blue: 120/255)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            ))
+            .frame(width: 28, height: 28)
+            .overlay(Image(systemName: "sparkles").font(.system(size: 11)).foregroundColor(.white))
+    }
+
+    private var userBadge: some View {
+        Circle()
+            .fill(Color.white.opacity(0.12))
+            .frame(width: 28, height: 28)
+            .overlay(Image(systemName: "person.fill").font(.system(size: 13)).foregroundColor(.white.opacity(0.65)))
     }
 }
 
 // MARK: - TypingIndicator
 
 struct TypingIndicator: View {
-    @State private var phase: Int = 0
+    @State private var active = false
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             ForEach(0..<3) { i in
                 Circle()
-                    .fill(Color.white.opacity(phase == i ? 0.9 : 0.3))
-                    .frame(width: 7, height: 7)
-                    .animation(.easeInOut(duration: 0.4).delay(Double(i) * 0.15).repeatForever(autoreverses: true),
-                               value: phase)
+                    .fill(Color.white.opacity(0.75))
+                    .frame(width: 6, height: 6)
+                    .scaleEffect(active ? 1.0 : 0.45)
+                    .opacity(active ? 1.0 : 0.25)
+                    .animation(
+                        .easeInOut(duration: 0.55)
+                            .repeatForever(autoreverses: true)
+                            .delay(Double(i) * 0.18),
+                        value: active
+                    )
             }
         }
-        .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-                phase = (phase + 1) % 3
-            }
-        }
+        .onAppear { active = true }
     }
 }
