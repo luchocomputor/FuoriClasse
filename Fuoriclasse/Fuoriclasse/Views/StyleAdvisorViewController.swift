@@ -28,24 +28,24 @@ struct StyleAdvisorView: View {
             // Le ZStack met le background en couche basse.
             // Le VStack (messages + inputBar) occupe tout l'espace disponible
             // et remonte naturellement quand le clavier apparaît.
-            ZStack {
-                // ── Fond ──────────────────────────────────────────
-                RadialGradient(
-                    gradient: Gradient(colors: [
-                        Color(red: 40/255, green: 10/255, blue: 90/255),
-                        Color(red: 15/255, green: 5/255, blue: 40/255)
-                    ]),
-                    center: .center, startRadius: 100, endRadius: 500
-                )
-                .ignoresSafeArea()
-
-                FluidBackgroundView().ignoresSafeArea()
-
-                // ── Contenu ───────────────────────────────────────
-                VStack(spacing: 0) {
-                    messagesList
-                    inputBar
+            VStack(spacing: 0) {
+                messagesList
+                inputBar
+            }
+            // Le fond est en .background pour NE PAS affecter
+            // le layout du VStack — celui-ci reste dans la safe area
+            .background {
+                ZStack {
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 40/255, green: 10/255, blue: 90/255),
+                            Color(red: 15/255, green: 5/255, blue: 40/255)
+                        ]),
+                        center: .center, startRadius: 100, endRadius: 500
+                    )
+                    FluidBackgroundView()
                 }
+                .ignoresSafeArea()
             }
             .navigationTitle("Conseiller Mode")
             .navigationBarTitleDisplayMode(.inline)
