@@ -30,7 +30,7 @@ struct DressingItemAddView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 RadialGradient(
                     gradient: Gradient(colors: [Color.purple.opacity(0.7), Color.black]),
