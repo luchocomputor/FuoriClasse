@@ -182,6 +182,7 @@ struct ItemSelectionCell: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 100)
+                    .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)

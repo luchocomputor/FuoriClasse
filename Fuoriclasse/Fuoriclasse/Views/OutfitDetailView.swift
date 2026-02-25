@@ -204,6 +204,7 @@ struct OutfitItemTile: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 140)
+            .clipped()
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)

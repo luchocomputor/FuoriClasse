@@ -47,6 +47,7 @@ struct DressingItemListView: View {
                     tenuesContent
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Bouton flottant
             VStack {

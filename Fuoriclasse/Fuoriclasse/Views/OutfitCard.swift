@@ -6,7 +6,6 @@ struct OutfitCard: View {
     var body: some View {
         HStack(spacing: 14) {
             thumbnailRow
-                .frame(width: 136, height: 62)
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(outfit.title ?? "Sans titre")
@@ -78,6 +77,7 @@ struct OutfitCard: View {
             }
         }
         .frame(width: 42, height: 52)
+        .clipped()
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
