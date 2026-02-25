@@ -8,6 +8,11 @@ struct ProfileView: View {
         animation: .default
     ) private var dressingItems: FetchedResults<DressingItem>
 
+    @FetchRequest(
+        sortDescriptors: [],
+        animation: .default
+    ) private var outfits: FetchedResults<Outfit>
+
     @StateObject private var avatarManager = AvatarManager()
 
     @State private var username         = ""
@@ -215,7 +220,7 @@ struct ProfileView: View {
             Rectangle()
                 .fill(Color.white.opacity(0.12))
                 .frame(width: 1, height: 32)
-            StatTile(value: "0", label: "styles adoptés")
+            StatTile(value: "\(outfits.count)", label: "styles adoptés")
             Spacer()
         }
         .padding(.vertical, 14)

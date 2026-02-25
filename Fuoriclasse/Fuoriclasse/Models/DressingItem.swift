@@ -49,7 +49,8 @@ extension DressingItem {
     @NSManaged public var fit: String?
     @NSManaged public var style: String?
     @NSManaged public var price: String?
-    
+    @NSManaged public var outfits: NSSet?
+
     // Computed property pour manipuler l’énum DotClass
     var dotClassEnum: DotClass {
         get { DotClass(rawValue: dotClass) ?? .green }

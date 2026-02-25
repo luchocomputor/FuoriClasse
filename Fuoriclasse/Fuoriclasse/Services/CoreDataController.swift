@@ -33,4 +33,9 @@ class CoreDataController {
         context.delete(item)
         save()
     }
+
+    func delete(_ outfit: Outfit) {
+        context.delete(outfit)
+        save()
+    }
 }
