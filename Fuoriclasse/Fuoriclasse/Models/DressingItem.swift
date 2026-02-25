@@ -43,6 +43,12 @@ extension DressingItem {
     @NSManaged public var image: Data?
     @NSManaged public var dotClass: String
     @NSManaged public var additionalInfo: String
+    // Nouveaux attributs (optional car ajoutés par migration)
+    @NSManaged public var material: String?
+    @NSManaged public var season: String?
+    @NSManaged public var fit: String?
+    @NSManaged public var style: String?
+    @NSManaged public var price: String?
     
     // Computed property pour manipuler l’énum DotClass
     var dotClassEnum: DotClass {

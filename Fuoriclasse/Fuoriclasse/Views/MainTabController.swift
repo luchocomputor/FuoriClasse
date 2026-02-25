@@ -11,13 +11,6 @@ struct MainTabView: View {
             }
 
             NavigationStack {
-                AvatarView()
-            }
-            .tabItem {
-                Label("Avatar", systemImage: "person.circle.fill")
-            }
-
-            NavigationStack {
                 StyleAdvisorView()
             }
             .tabItem {

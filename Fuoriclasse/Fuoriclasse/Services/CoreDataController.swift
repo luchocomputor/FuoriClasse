@@ -9,6 +9,9 @@ class CoreDataController {
 
     private init() {
         persistentContainer = NSPersistentContainer(name: "Fuoriclasse")
+        let description = persistentContainer.persistentStoreDescriptions.first
+        description?.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
+        description?.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
         persistentContainer.loadPersistentStores { _, error in
             if let error = error {
                 fatalError("Erreur Core Data: \(error)")

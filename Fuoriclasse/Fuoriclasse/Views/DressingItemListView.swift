@@ -11,50 +11,96 @@ struct DressingItemListView: View {
 
     var body: some View {
         ZStack {
+            // Fond
             RadialGradient(
                 gradient: Gradient(colors: [
                     Color(red: 40/255, green: 10/255, blue: 90/255),
                     Color(red: 15/255, green: 5/255, blue: 40/255)
                 ]),
-                center: .center,
-                startRadius: 100,
-                endRadius: 500
+                center: .center, startRadius: 100, endRadius: 500
             )
             .ignoresSafeArea()
-
             FluidBackgroundView()
 
-            VStack(spacing: 20) {
-                Text("Mon Dressing")
-                    .font(.custom("Futura-Bold", size: 28))
-                    .foregroundColor(.white)
-                    .shadow(color: Color.black.opacity(0.3), radius: 4, x: 2, y: 2)
-                    .padding(.top, 20)
-
+            // Contenu
+            if items.isEmpty {
+                emptyState
+            } else {
                 ScrollView {
-                    VStack(spacing: 15) {
+                    LazyVStack(spacing: 10) {
                         ForEach(items, id: \.objectID) { item in
                             NavigationLink(destination: DressingItemDetailView(item: item)) {
                                 DressingItemCard(item: item)
-                                    .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 100) // espace pour le bouton flottant
                 }
+            }
 
+            // Bouton flottant en bas
+            VStack {
                 Spacer()
-
-                Button(action: { showingAddSheet = true }) {
-                    GlassButtonLabel(iconName: "plus", text: "Ajouter un vêtement")
+                Button { showingAddSheet = true } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("Ajouter une pièce")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.vertical, 14)
+                    .padding(.horizontal, 28)
+                    .background(
+                        Capsule()
+                            .fill(Color(red: 120/255, green: 60/255, blue: 200/255))
+                            .shadow(color: Color(red: 120/255, green: 60/255, blue: 200/255).opacity(0.5),
+                                    radius: 12, x: 0, y: 4)
+                    )
                 }
-                .buttonStyle(PlainButtonStyle())
-                .padding(.bottom, 30)
+                .buttonStyle(.plain)
+                .padding(.bottom, 20)
             }
         }
+        .navigationTitle("Mon Dressing")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .sheet(isPresented: $showingAddSheet) {
             DressingItemAddView(isPresented: $showingAddSheet)
                 .environment(\.managedObjectContext, CoreDataController.shared.context)
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "hanger")
+                .font(.system(size: 52))
+                .foregroundColor(.white.opacity(0.2))
+            Text("Ton dressing est vide")
+                .font(.custom("Futura-Bold", size: 20))
+                .foregroundColor(.white.opacity(0.4))
+            Text("Ajoute ta première pièce !")
+                .font(.system(size: 14, weight: .light))
+                .foregroundColor(.white.opacity(0.3))
+            Button { showingAddSheet = true } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus")
+                    Text("Ajouter une pièce")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.vertical, 12)
+                .padding(.horizontal, 24)
+                .background(
+                    Capsule()
+                        .fill(Color(red: 120/255, green: 60/255, blue: 200/255))
+                )
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
         }
     }
 }

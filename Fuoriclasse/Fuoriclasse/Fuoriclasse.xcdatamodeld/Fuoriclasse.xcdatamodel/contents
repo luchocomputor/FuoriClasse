@@ -6,9 +6,14 @@
         <attribute name="category" optional="YES" attributeType="String"/>
         <attribute name="color" optional="YES" attributeType="String"/>
         <attribute name="dotClass" optional="YES" attributeType="String"/>
+        <attribute name="fit" optional="YES" attributeType="String"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="image" optional="YES" attributeType="Binary"/>
+        <attribute name="material" optional="YES" attributeType="String"/>
+        <attribute name="price" optional="YES" attributeType="String"/>
+        <attribute name="season" optional="YES" attributeType="String"/>
         <attribute name="size" optional="YES" attributeType="String"/>
+        <attribute name="style" optional="YES" attributeType="String"/>
         <attribute name="title" optional="YES" attributeType="String"/>
     </entity>
 </model>
