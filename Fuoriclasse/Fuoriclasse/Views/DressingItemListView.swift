@@ -31,15 +31,11 @@ struct DressingItemListView: View {
 
             // Contenu
             VStack(spacing: 0) {
-                // Segmented control
-                Picker("", selection: $selectedTab) {
-                    Text("Pièces").tag(0)
-                    Text("Tenues").tag(1)
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 6)
+                // Segmented control SwiftUI natif (évite les problèmes de largeur UIKit dans ZStack)
+                dressingSegmentedControl
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 6)
 
                 if selectedTab == 0 {
                     piecesContent
@@ -193,5 +189,39 @@ struct DressingItemListView: View {
             .padding(.top, 8)
             Spacer()
         }
+    }
+
+    // MARK: - Segmented control SwiftUI
+
+    private var dressingSegmentedControl: some View {
+        HStack(spacing: 0) {
+            ForEach([("Pièces", 0), ("Tenues", 1)], id: \.1) { label, tag in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { selectedTab = tag }
+                } label: {
+                    Text(label)
+                        .font(.system(size: 14, weight: selectedTab == tag ? .semibold : .regular))
+                        .foregroundColor(selectedTab == tag ? .white : .white.opacity(0.45))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            Group {
+                                if selectedTab == tag {
+                                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                        .fill(Color.white.opacity(0.15))
+                                }
+                            }
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(Color.white.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        )
     }
 }
