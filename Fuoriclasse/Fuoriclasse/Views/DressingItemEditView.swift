@@ -55,19 +55,22 @@ struct DressingItemEditView: View {
     init(isPresented: Binding<Bool>, item: DressingItem) {
         self._isPresented = isPresented
         self.item = item
-        self._title         = State(initialValue: item.title)
-        self._brand         = State(initialValue: item.brand)
-        self._category      = State(initialValue: item.category)
-        self._size          = State(initialValue: item.size)
-        self._color         = State(initialValue: item.color)
-        self._material      = State(initialValue: item.material ?? "")
-        self._fit           = State(initialValue: item.fit ?? "")
-        self._season        = State(initialValue: item.season ?? "Toutes saisons")
-        self._style         = State(initialValue: item.style ?? "")
-        self._price         = State(initialValue: item.price ?? "")
-        self._dotClass      = State(initialValue: item.dotClassEnum)
-        self._additionalInfo = State(initialValue: item.additionalInfo)
-        self._imageData     = State(initialValue: item.image)
+        // Accès via value(forKey:) pour sécuriser contre le nil ObjC bridge :
+        // les @NSManaged String non-optionnels peuvent retourner nil si Core Data
+        // n'a pas encore résolu le fault, causant un affichage vide des champs.
+        self._title          = State(initialValue: (item.value(forKey: "title") as? String) ?? "")
+        self._brand          = State(initialValue: (item.value(forKey: "brand") as? String) ?? "")
+        self._category       = State(initialValue: (item.value(forKey: "category") as? String) ?? "T-shirt")
+        self._size           = State(initialValue: (item.value(forKey: "size") as? String) ?? "M")
+        self._color          = State(initialValue: (item.value(forKey: "color") as? String) ?? "")
+        self._material       = State(initialValue: item.material ?? "")
+        self._fit            = State(initialValue: item.fit ?? "")
+        self._season         = State(initialValue: item.season ?? "Toutes saisons")
+        self._style          = State(initialValue: item.style ?? "")
+        self._price          = State(initialValue: item.price ?? "")
+        self._dotClass       = State(initialValue: item.dotClassEnum)
+        self._additionalInfo = State(initialValue: (item.value(forKey: "additionalInfo") as? String) ?? "")
+        self._imageData      = State(initialValue: item.image)
     }
 
     var body: some View {

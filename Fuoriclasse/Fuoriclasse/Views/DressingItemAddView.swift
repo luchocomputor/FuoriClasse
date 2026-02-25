@@ -354,6 +354,7 @@ struct AddFieldRow: View {
                 .font(.system(size: 15))
                 .foregroundColor(.white)
                 .tint(Color(red: 180/255, green: 120/255, blue: 255/255))
+                .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -381,6 +382,7 @@ struct AddPickerRow: View {
             Text(label)
                 .font(.system(size: 15))
                 .foregroundColor(.white)
+                .layoutPriority(1)
             Spacer()
             Picker(label, selection: $selection) {
                 ForEach(options, id: \.self) { opt in
@@ -389,6 +391,7 @@ struct AddPickerRow: View {
             }
             .pickerStyle(.menu)
             .tint(Color(red: 180/255, green: 120/255, blue: 255/255))
+            .frame(maxWidth: 200)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -418,6 +421,7 @@ struct AddMultilineRow: View {
                 .foregroundColor(.white)
                 .tint(Color(red: 180/255, green: 120/255, blue: 255/255))
                 .lineLimit(3...6)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
