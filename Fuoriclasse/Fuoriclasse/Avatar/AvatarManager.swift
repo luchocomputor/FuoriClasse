@@ -1,30 +1,27 @@
-//
-//  AvatarManager.swift
-//  Fuoriclasse
-//
-//  Created by Louis Almairac on 05/03/2025.
-//
-
 import Foundation
+import Combine
 
-class AvatarManager: ObservableObject {
+@MainActor
+final class AvatarManager: ObservableObject {
+
     @Published var avatarURL: URL?
 
-    func fetchAvatar(fileName: String) {
-        let possibleExtensions = ["usdz", "glb"]  // ✅ Liste des formats acceptés
-        
-        for ext in possibleExtensions {
-            if let url = Bundle.main.url(forResource: fileName, withExtension: ext) {
-                DispatchQueue.main.async {
-                    self.avatarURL = url
-                    print("✅ Avatar local chargé : \(url)")
-                }
-                return  // ✅ Arrête dès qu'on trouve un fichier existant
-            }
-        }
+    var hasAvatar: Bool { avatarURL != nil }
 
-        print("❌ Aucun fichier \(fileName).usdz ou \(fileName).glb trouvé dans le bundle")
+    init() {
+        loadLocalAvatar()
+    }
+
+    /// Charge l'avatar depuis le filesystem (Documents/avatar.glb).
+    /// Appeler en onAppear si plusieurs vues utilisent la même instance.
+    func loadLocalAvatar() {
+        let url = AvaturnService.shared.localAvatarURL
+        avatarURL = FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Supprime l'avatar local et réinitialise l'état.
+    func deleteAvatar() {
+        AvaturnService.shared.deleteAvatar()
+        avatarURL = nil
     }
 }
-
-

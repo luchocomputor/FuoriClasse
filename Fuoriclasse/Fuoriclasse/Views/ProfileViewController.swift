@@ -50,7 +50,7 @@ struct ProfileView: View {
             }
             .ignoresSafeArea()
         }
-        .onAppear { avatarManager.fetchAvatar(fileName: "lucho3") }
+        .onAppear { avatarManager.loadLocalAvatar() }
         .navigationTitle("Profil")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
