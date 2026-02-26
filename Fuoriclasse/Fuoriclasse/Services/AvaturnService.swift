@@ -85,6 +85,34 @@ actor AvaturnService {
     }
 
     /// Supprime l'avatar local
+    /// Récupère l'URL du dernier avatar via l'API Avaturn (avec token Firebase user)
+    func fetchLatestAvatarURL(bearerToken: String) async throws -> URL? {
+        var req = URLRequest(url: URL(string: "https://api.avaturn.me/avatars")!)
+        req.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        guard let json = try? JSONSerialization.jsonObject(with: data) else { return nil }
+
+        // Formats possibles : tableau ou {"items":[...]} ou {"avatars":[...]}
+        var items: [[String: Any]] = []
+        if let arr = json as? [[String: Any]] { items = arr }
+        else if let obj = json as? [String: Any] {
+            items = (obj["items"] as? [[String: Any]])
+                 ?? (obj["avatars"] as? [[String: Any]])
+                 ?? []
+        }
+        // Préfère le plus récent (premier élément), priorité usdz > glb
+        for item in items {
+            let urlStr = (item["usdzUrl"] as? String)
+                      ?? (item["modelUrl"] as? String)
+                      ?? (item["glbUrl"] as? String)
+                      ?? (item["url"] as? String)
+            if let urlStr, let url = URL(string: urlStr) { return url }
+        }
+        return nil
+    }
+
     nonisolated func deleteAvatar() {
         let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         for ext in ["usdz", "glb"] {

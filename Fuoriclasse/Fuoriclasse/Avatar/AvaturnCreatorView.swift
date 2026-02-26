@@ -2,16 +2,9 @@ import SwiftUI
 import UIKit
 import WebKit
 
-/// WKWebView embarquant le créateur d'avatar Avaturn.
-/// Stratégie d'export multi-couches :
-///   1. postMessage "v2.avatar.exported"   → onExported() automatique
-///   2. Interception fetch/XHR pour .glb  → capturedGLBURL mis à jour
-///   3. Bouton natif "Importer"            → evaluateJavaScript sur localStorage
 struct AvaturnCreatorView: UIViewRepresentable {
     let embedURL: String
-    /// URL GLB capturée automatiquement — permet d'activer le bouton "Importer"
     @Binding var capturedGLBURL: URL?
-    /// Référence au Coordinator exposée pour l'évaluation JS manuelle
     @Binding var coordinator: Coordinator?
     let onExported: (URL) -> Void
 
@@ -23,41 +16,146 @@ struct AvaturnCreatorView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.userContentController.add(context.coordinator, name: "avaturn")
 
-        // ── Bridge JS complet ──────────────────────────────────────────────
+        // ── Bridge JS ─────────────────────────────────────────────────────
+        // Stratégie principale : simuler un parent iframe → Avaturn pense être
+        // embarqué et déclenche window.parent.postMessage("v2.avatar.exported")
+        // Stratégie fallback  : bouton injecté dans la page + interception API
         let bridge = """
         (function() {
-            // 1. Relay postMessage → natif
-            function relay(data) {
-                try {
-                    var p = (typeof data === 'string') ? JSON.parse(data) : data;
-                    window.webkit.messageHandlers.avaturn.postMessage(p);
-                } catch(_) {
-                    window.webkit.messageHandlers.avaturn.postMessage({ raw: String(data) });
-                }
+
+          // ① Fake parent frame : Avaturn vérifie window !== window.top
+          //   et n'envoie postMessage QUE si embedded. On le trompe.
+          var _fakeParent = {
+            postMessage: function(data) {
+              try {
+                var p = (typeof data === 'string') ? JSON.parse(data) : data;
+                window.webkit.messageHandlers.avaturn.postMessage(p);
+              } catch(_) {
+                window.webkit.messageHandlers.avaturn.postMessage({ raw: String(data) });
+              }
             }
-            window.addEventListener('message', function(e) { relay(e.data); }, false);
-            var _pm = window.postMessage.bind(window);
-            window.postMessage = function(msg, t) { relay(msg); _pm(msg, t || '*'); };
+          };
+          try {
+            Object.defineProperty(window, 'parent', { get: function(){ return _fakeParent; }, configurable: true });
+            Object.defineProperty(window, 'top',    { get: function(){ return _fakeParent; }, configurable: true });
+          } catch(e) {}
 
-            // 2. Capture URL .glb via fetch
-            var _fetch = window.fetch.bind(window);
-            window.fetch = function(resource, opts) {
-                var url = typeof resource === 'string' ? resource
-                        : (resource && resource.url ? resource.url : '');
-                if (url && /\\.glb(\\?|$)/i.test(url)) {
-                    window.webkit.messageHandlers.avaturn.postMessage({ glbUrl: url });
-                }
-                return _fetch.apply(window, arguments);
-            };
+          // ② window.addEventListener('message') bridge (postMessage natif)
+          function relay(data) {
+            try {
+              var p = (typeof data === 'string') ? JSON.parse(data) : data;
+              window.webkit.messageHandlers.avaturn.postMessage(p);
+            } catch(_) {
+              window.webkit.messageHandlers.avaturn.postMessage({ raw: String(data) });
+            }
+          }
+          window.addEventListener('message', function(e) { relay(e.data); }, false);
+          var _pm = window.postMessage.bind(window);
+          window.postMessage = function(msg, t) { relay(msg); _pm(msg, t || '*'); };
 
-            // 3. Capture URL .glb via XHR
-            var _open = XMLHttpRequest.prototype.open;
-            XMLHttpRequest.prototype.open = function(method, url) {
-                if (url && /\\.glb(\\?|$)/i.test(url)) {
-                    window.webkit.messageHandlers.avaturn.postMessage({ glbUrl: url });
+          // ③ Capture URL .glb/.usdz via fetch (réponses réseau Avaturn)
+          var _fetch = window.fetch.bind(window);
+          window.fetch = function(resource, opts) {
+            var url = typeof resource === 'string' ? resource
+                    : (resource && resource.url ? resource.url : '');
+            var promise = _fetch.apply(window, arguments);
+            // Capture URL de requête si c'est un modèle 3D
+            if (url && /\\.(glb|usdz)(\\?|$)/i.test(url)) {
+              window.webkit.messageHandlers.avaturn.postMessage({ glbUrl: url });
+            }
+            // Capture URL depuis la réponse JSON d'Avaturn (liste d'avatars)
+            if (url && url.includes('avaturn.me')) {
+              promise.then(function(res) {
+                var clone = res.clone();
+                clone.json().then(function(json) {
+                  var items = Array.isArray(json) ? json : (json.items || json.avatars || [json]);
+                  for (var item of items) {
+                    var u = item.modelUrl || item.glbUrl || item.url || item.model_url;
+                    if (u && /\\.(glb|usdz)/i.test(u)) {
+                      window.webkit.messageHandlers.avaturn.postMessage({ glbUrl: u });
+                    }
+                  }
+                }).catch(function(){});
+              }).catch(function(){});
+            }
+            return promise;
+          };
+
+          // ④ Injecte un bouton visible "Utiliser dans Fuoriclasse" dans la page
+          function injectBtn() {
+            if (document.getElementById('fc-export-btn')) return;
+            var btn = document.createElement('button');
+            btn.id = 'fc-export-btn';
+            btn.textContent = '✓ Utiliser cet avatar';
+            btn.style.cssText = [
+              'position:fixed','bottom:96px','left:50%','transform:translateX(-50%)',
+              'background:rgba(140,80,220,0.95)','color:white',
+              'padding:14px 28px','border-radius:30px',
+              'font:700 16px/1 -apple-system,sans-serif',
+              'border:none','z-index:99999','cursor:pointer',
+              'box-shadow:0 6px 20px rgba(0,0,0,0.5)',
+              'white-space:nowrap'
+            ].join(';');
+            btn.onclick = function() {
+              btn.textContent = '⏳ Recherche...';
+              btn.disabled = true;
+              // Essaie de trouver l'URL du modèle dans localStorage / DOM
+              var found = null;
+              // localStorage
+              try {
+                for (var k of Object.keys(localStorage)) {
+                  var raw = localStorage.getItem(k);
+                  try {
+                    var v = JSON.parse(raw);
+                    for (var f of ['modelUrl','glbUrl','url','avatarUrl','model_url']) {
+                      if (v && v[f] && /\\.(glb|usdz)/i.test(String(v[f]))) { found = v[f]; break; }
+                    }
+                    if (!found && v && v.avatar) {
+                      for (var f of ['modelUrl','glbUrl','url']) {
+                        if (v.avatar[f] && /\\.(glb|usdz)/i.test(String(v.avatar[f]))) { found = v.avatar[f]; break; }
+                      }
+                    }
+                  } catch(e) {}
+                  if (!found && typeof raw === 'string') {
+                    var m = raw.match(/"(https?:\\/\\/[^"]*\\.(glb|usdz)[^"]*)"/i);
+                    if (m) found = m[1];
+                  }
+                  if (found) break;
                 }
-                return _open.apply(this, arguments);
+              } catch(e) {}
+              // Firebase auth token → signal pour appel API natif
+              var fbToken = null;
+              try {
+                for (var k of Object.keys(localStorage)) {
+                  if (k.startsWith('firebase:authUser')) {
+                    var u = JSON.parse(localStorage.getItem(k));
+                    if (u && u.stsTokenManager && u.stsTokenManager.accessToken) {
+                      fbToken = u.stsTokenManager.accessToken;
+                    }
+                  }
+                }
+              } catch(e) {}
+              if (found) {
+                window.webkit.messageHandlers.avaturn.postMessage({ glbUrl: found });
+                btn.textContent = '✓ Importé !';
+              } else if (fbToken) {
+                window.webkit.messageHandlers.avaturn.postMessage({ firebaseToken: fbToken });
+                btn.textContent = '⏳ Import via API...';
+              } else {
+                window.webkit.messageHandlers.avaturn.postMessage({ exportRequest: true });
+                btn.textContent = '✓ Utiliser cet avatar';
+                btn.disabled = false;
+              }
             };
+            document.body.appendChild(btn);
+          }
+
+          // Injecte après chargement + surveille les navigations SPA
+          if (document.readyState === 'complete') { setTimeout(injectBtn, 800); }
+          window.addEventListener('load', function() { setTimeout(injectBtn, 800); });
+          var _pushState = history.pushState;
+          history.pushState = function() { _pushState.apply(history, arguments); setTimeout(injectBtn, 800); };
+
         })();
         """
         let script = WKUserScript(source: bridge, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
@@ -88,7 +186,7 @@ struct AvaturnCreatorView: UIViewRepresentable {
             <p style="color:rgba(255,255,255,0.5);font-family:sans-serif;
             text-align:center;padding:32px;line-height:1.6;">
             Ajoute l'URL embed Avaturn dans Secrets.plist<br>
-            <small>(clé AVATURN_EMBED_URL — depuis Editor Settings)</small>
+            <small>(clé AVATURN_EMBED_URL)</small>
             </p></body></html>
             """
             webView.loadHTMLString(html, baseURL: nil)
@@ -109,7 +207,7 @@ struct AvaturnCreatorView: UIViewRepresentable {
             self.onExported = onExported
         }
 
-        // ── Permission caméra (iOS 15+) ────────────────────────────────────
+        // ── Permission caméra iOS 15+ ──────────────────────────────────────
         func webView(_ webView: WKWebView,
                      requestMediaCapturePermissionFor origin: WKSecurityOrigin,
                      initiatedByFrame frame: WKFrameInfo,
@@ -118,7 +216,7 @@ struct AvaturnCreatorView: UIViewRepresentable {
             decisionHandler(.grant)
         }
 
-        // ── Réception messages JS ──────────────────────────────────────────
+        // ── Messages JS reçus ─────────────────────────────────────────────
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
             guard message.name == "avaturn" else { return }
 
@@ -132,69 +230,68 @@ struct AvaturnCreatorView: UIViewRepresentable {
             }
             guard let dict else { return }
 
+            // Helper : capture URL et déclenche onExported
             func fire(_ urlString: String) {
                 guard let url = URL(string: urlString) else { return }
                 DispatchQueue.main.async {
-                    // Met à jour capturedGLBURL pour activer le bouton "Importer"
                     self.capturedGLBURL = url
+                    self.onExported(url)        // export automatique immédiat
                 }
             }
 
-            // Format officiel : {"eventName": "v2.avatar.exported", "data": {"usdzUrl": "...", "glbUrl": "..."}}
-            // On préfère usdzUrl (format natif iOS, pas de Draco) puis glbUrl en fallback
-            if let event = dict["eventName"] as? String,
-               event == "v2.avatar.exported",
+            // Format officiel : {"eventName": "v2.avatar.exported", "data": {"usdzUrl","glbUrl"}}
+            if let event = dict["eventName"] as? String, event == "v2.avatar.exported",
                let data = dict["data"] as? [String: Any] {
                 let urlStr = (data["usdzUrl"] as? String) ?? (data["glbUrl"] as? String)
-                if let urlStr {
-                    fire(urlStr)
-                    if let url = URL(string: urlStr) {
+                if let urlStr { fire(urlStr) }
+                return
+            }
+
+            // URL capturée via fetch/XHR ou bouton injecté
+            if let glbStr = dict["glbUrl"] as? String { fire(glbStr); return }
+            for key in ["usdzUrl", "url", "avatarUrl"] {
+                if let s = dict[key] as? String { fire(s); return }
+            }
+
+            // Token Firebase : demande à l'app de fetch l'avatar via API Avaturn
+            if let token = dict["firebaseToken"] as? String {
+                Task {
+                    if let url = try? await AvaturnService.shared.fetchLatestAvatarURL(bearerToken: token) {
                         DispatchQueue.main.async { self.onExported(url) }
                     }
                 }
                 return
             }
-
-            // Capture via interception fetch/XHR
-            if let glbStr = dict["glbUrl"] as? String {
-                fire(glbStr)
-                return
-            }
-
-            // Formats de repli
-            for key in ["url", "avatarUrl"] {
-                if let s = dict[key] as? String { fire(s); return }
-            }
         }
 
-        // ── Évaluation JS manuelle (bouton "Importer") ─────────────────────
-        /// Cherche l'URL du GLB dans localStorage/sessionStorage de la page
+        // ── Évaluation JS manuelle (fallback bouton natif "Importer") ──────
         func evaluateExtractURL(completion: @escaping (URL?) -> Void) {
             guard let wv = webView else { completion(nil); return }
+            // Cherche aussi dans l'URL courante de la page (certains SPA mettent l'avatar ID dans l'URL)
             let js = """
             (function() {
-                var stores = [localStorage, sessionStorage];
-                for (var s of stores) {
-                    for (var k of Object.keys(s)) {
-                        try {
-                            var raw = s.getItem(k);
-                            var v = JSON.parse(raw);
-                            for (var field of ['modelUrl','glbUrl','url','avatarUrl','exportUrl']) {
-                                if (v && v[field] && String(v[field]).match(/\\.glb/i)) return v[field];
-                            }
-                            if (typeof raw === 'string' && raw.match(/https?:\\/\\/.*\\.glb/i)) {
-                                var m = raw.match(/(https?:\\/\\/[^"'\\s]*\\.glb[^"'\\s]*)/i);
-                                if (m) return m[1];
-                            }
-                        } catch(e) {}
+              var stores = [localStorage, sessionStorage];
+              for (var s of stores) {
+                for (var k of Object.keys(s)) {
+                  try {
+                    var raw = s.getItem(k);
+                    var v = JSON.parse(raw);
+                    for (var f of ['modelUrl','glbUrl','url','avatarUrl','model_url']) {
+                      if (v && v[f] && /\\.(glb|usdz)/i.test(String(v[f]))) return v[f];
                     }
+                    var m = raw && raw.match(/"(https?:\\/\\/[^"]*\\.(glb|usdz)[^"]*)"/i);
+                    if (m) return m[1];
+                  } catch(e) {}
                 }
-                return null;
+              }
+              return window.location.href;
             })()
             """
             wv.evaluateJavaScript(js) { result, _ in
-                if let s = result as? String, let url = URL(string: s) {
-                    completion(url)
+                if let s = result as? String, let url = URL(string: s), url.scheme == "https" {
+                    // Si l'URL est une page web (pas un fichier 3D), retourner nil
+                    let ext = url.pathExtension.lowercased()
+                    completion((ext == "glb" || ext == "usdz") ? url : nil)
                 } else {
                     completion(nil)
                 }
