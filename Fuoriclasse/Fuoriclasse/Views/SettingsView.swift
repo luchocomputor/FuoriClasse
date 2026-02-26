@@ -4,31 +4,9 @@ struct SettingsView: View {
     @EnvironmentObject var auth: AuthManager
     @Environment(\.dismiss) private var dismiss
 
-    // Champs profil (location + bio éditables, username chargé mais non affiché)
-    @State private var currentUsername  = ""
-    @State private var location         = ""
-    @State private var bio              = ""
-    @State private var initialLocation  = ""
-    @State private var initialBio       = ""
-
-    @State private var editingField: EditableField? = nil
-    @State private var editBuffer       = ""
-    @FocusState private var fieldFocused: Bool
-
-    @State private var showLogoutAlert  = false
+    @State private var showLogoutAlert = false
 
     private var email: String { auth.session?.user.email ?? "" }
-
-    enum EditableField: Identifiable {
-        case location, bio
-        var id: Self { self }
-        var label: String {
-            switch self {
-            case .location: return "Ville"
-            case .bio:      return "Bio"
-            }
-        }
-    }
 
     var body: some View {
         NavigationStack {
@@ -65,9 +43,6 @@ struct SettingsView: View {
                 }
             }
         }
-        .sheet(item: $editingField) { field in
-            editSheet(for: field)
-        }
         .alert("Se déconnecter ?", isPresented: $showLogoutAlert) {
             Button("Déconnecter", role: .destructive) {
                 Task { try? await auth.signOut() }
@@ -75,22 +50,6 @@ struct SettingsView: View {
             Button("Annuler", role: .cancel) {}
         } message: {
             Text("Vous devrez vous reconnecter pour accéder à l'application.")
-        }
-        .task {
-            guard let profile = try? await auth.loadProfile() else { return }
-            currentUsername = profile.username ?? ""
-            location        = profile.location ?? ""
-            bio             = profile.bio      ?? ""
-            initialLocation = location
-            initialBio      = bio
-        }
-        .onDisappear {
-            let hasChanges = location != initialLocation || bio != initialBio
-            guard hasChanges else { return }
-            let username = currentUsername
-            let loc = location
-            let b = bio
-            Task { try? await auth.updateProfile(username: username, location: loc, bio: b) }
         }
     }
 
@@ -136,48 +95,28 @@ struct SettingsView: View {
 
     private var infoCard: some View {
         GlassCard {
-            VStack(spacing: 0) {
-                HStack(spacing: 14) {
-                    Image(systemName: "envelope.fill")
+            HStack(spacing: 14) {
+                Image(systemName: "envelope.fill")
+                    .font(.system(size: 15))
+                    .foregroundColor(Color(red: 160/255, green: 100/255, blue: 240/255))
+                    .frame(width: 22)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("E-mail")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.white.opacity(0.4))
+                        .tracking(0.5)
+                    Text(email.isEmpty ? "—" : email)
                         .font(.system(size: 15))
-                        .foregroundColor(Color(red: 160/255, green: 100/255, blue: 240/255))
-                        .frame(width: 22)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("E-mail")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.white.opacity(0.4))
-                            .tracking(0.5)
-                        Text(email.isEmpty ? "—" : email)
-                            .font(.system(size: 15))
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-                    }
-                    Spacer()
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.2))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-
-                settingsDivider
-
-                ProfileRow(
-                    icon: "mappin.circle.fill",
-                    label: "Ville",
-                    value: location.isEmpty ? "Ajouter" : location,
-                    isEmpty: location.isEmpty
-                ) { startEditing(.location) }
-
-                settingsDivider
-
-                ProfileRow(
-                    icon: "text.quote",
-                    label: "Bio",
-                    value: bio.isEmpty ? "Ajouter" : bio,
-                    isEmpty: bio.isEmpty
-                ) { startEditing(.bio) }
+                Spacer()
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.2))
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
         }
         .padding(.horizontal, 20)
     }
@@ -221,69 +160,5 @@ struct SettingsView: View {
             .fill(Color.white.opacity(0.07))
             .frame(height: 1)
             .padding(.leading, 56)
-    }
-
-    // MARK: - Édition
-
-    private func startEditing(_ field: EditableField) {
-        editBuffer = field == .location ? location : bio
-        editingField = field
-    }
-
-    private func commitEdit(for field: EditableField) {
-        switch field {
-        case .location: location = editBuffer
-        case .bio:      bio      = editBuffer
-        }
-        editingField = nil
-    }
-
-    @ViewBuilder
-    private func editSheet(for field: EditableField) -> some View {
-        NavigationStack {
-            ZStack {
-                Color(red: 15/255, green: 5/255, blue: 35/255).ignoresSafeArea()
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(field.label)
-                        .font(.custom("Futura-Bold", size: 18))
-                        .foregroundColor(.white)
-                        .padding(.top, 8)
-
-                    TextField(field.label, text: $editBuffer, axis: field == .bio ? .vertical : .horizontal)
-                        .lineLimit(field == .bio ? 4 : 1)
-                        .font(.system(size: 17))
-                        .foregroundColor(.white)
-                        .tint(Color(red: 180/255, green: 120/255, blue: 255/255))
-                        .focused($fieldFocused)
-                        .padding(14)
-                        .background(Color.white.opacity(0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(Color.white.opacity(0.14), lineWidth: 1)
-                        )
-
-                    Spacer()
-                }
-                .padding(.horizontal, 24)
-            }
-            .navigationTitle("Modifier")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { editingField = nil }
-                        .foregroundColor(.white.opacity(0.6))
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("OK") { commitEdit(for: field) }
-                        .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255))
-                        .fontWeight(.semibold)
-                }
-            }
-        }
-        .presentationDetents([.height(240)])
-        .presentationBackground(Color(red: 15/255, green: 5/255, blue: 35/255))
-        .onAppear { fieldFocused = true }
     }
 }

@@ -21,28 +21,34 @@ struct ProfileView: View {
 
     @State private var profileImageData: Data? = UserDefaults.standard.data(forKey: "profile_photo")
     @State private var showPhotoPicker  = false
-
-    @State private var editingUsername  = false
-    @State private var usernameBuffer   = ""
-    @FocusState private var usernameFocused: Bool
-
+    @State private var showEditSheet    = false
     @State private var showSettings     = false
 
     private var itemCount: Int { dressingItems.count }
 
     var body: some View {
-        ZStack {
-            background
-            ScrollView {
-                VStack(spacing: 24) {
-                    heroSection
-                    avatarSection
-                    wardrobePreview
-                    statsBar
-                    Spacer().frame(height: 20)
-                }
-                .padding(.top, 16)
+        ScrollView {
+            VStack(spacing: 24) {
+                heroSection
+                statsBar
+                wardrobePreview
+                avatarSection
+                Spacer().frame(height: 20)
             }
+            .padding(.top, 16)
+        }
+        .background {
+            ZStack {
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 40/255, green: 10/255, blue: 90/255),
+                        Color(red: 15/255, green: 5/255, blue: 40/255)
+                    ]),
+                    center: .center, startRadius: 100, endRadius: 500
+                )
+                FluidBackgroundView()
+            }
+            .ignoresSafeArea()
         }
         .onAppear { avatarManager.fetchAvatar(fileName: "lucho3") }
         .navigationTitle("Profil")
@@ -70,8 +76,8 @@ struct ProfileView: View {
             SettingsView()
                 .environmentObject(auth)
         }
-        .sheet(isPresented: $editingUsername) {
-            usernameEditSheet
+        .sheet(isPresented: $showEditSheet, onDismiss: { Task { await reloadProfile() } }) {
+            ProfileEditSheet(auth: auth, username: $username, location: $location, bio: $bio)
         }
         .task { await reloadProfile() }
     }
@@ -86,26 +92,10 @@ struct ProfileView: View {
         bio      = profile.bio      ?? ""
     }
 
-    // MARK: - Fond
-
-    private var background: some View {
-        ZStack {
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 40/255, green: 10/255, blue: 90/255),
-                    Color(red: 15/255, green: 5/255, blue: 40/255)
-                ]),
-                center: .center, startRadius: 100, endRadius: 500
-            )
-            FluidBackgroundView()
-        }
-        .ignoresSafeArea()
-    }
-
-    // MARK: - Hero (compact)
+    // MARK: - Hero (centré)
 
     private var heroSection: some View {
-        HStack(spacing: 16) {
+        VStack(spacing: 14) {
             // Photo de profil
             ZStack(alignment: .bottomTrailing) {
                 Group {
@@ -121,12 +111,12 @@ struct ProfileView: View {
                                 startPoint: .topLeading, endPoint: .bottomTrailing
                             )
                             Image(systemName: "person.fill")
-                                .font(.system(size: 28))
+                                .font(.system(size: 36))
                                 .foregroundColor(.white.opacity(0.5))
                         }
                     }
                 }
-                .frame(width: 64, height: 64)
+                .frame(width: 88, height: 88)
                 .clipShape(Circle())
                 .overlay(
                     Circle().stroke(
@@ -135,79 +125,73 @@ struct ProfileView: View {
                                      Color(red: 80/255, green: 30/255, blue: 160/255)],
                             startPoint: .topLeading, endPoint: .bottomTrailing
                         ),
-                        lineWidth: 2
+                        lineWidth: 2.5
                     )
                 )
-                .shadow(color: .purple.opacity(0.4), radius: 8, x: 0, y: 3)
+                .shadow(color: .purple.opacity(0.4), radius: 10, x: 0, y: 4)
 
                 Button { showPhotoPicker = true } label: {
                     ZStack {
                         Circle()
                             .fill(Color(red: 140/255, green: 80/255, blue: 220/255))
-                            .frame(width: 22, height: 22)
+                            .frame(width: 28, height: 28)
                         Image(systemName: "camera.fill")
-                            .font(.system(size: 9))
+                            .font(.system(size: 11))
                             .foregroundColor(.white)
                     }
                 }
-                .offset(x: 1, y: 1)
+                .offset(x: 2, y: 2)
             }
 
-            // Pseudo + localisation
-            VStack(alignment: .leading, spacing: 4) {
-                Button { usernameBuffer = username; editingUsername = true } label: {
-                    HStack(spacing: 5) {
-                        Text(username.isEmpty ? "Ajouter un pseudo" : username)
-                            .font(.custom("Futura-Bold", size: 20))
-                            .foregroundColor(username.isEmpty ? .white.opacity(0.3) : .white)
-                        Image(systemName: "pencil")
-                            .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.3))
-                    }
-                }
+            // Pseudo + localisation + bio
+            VStack(spacing: 6) {
+                Text(username.isEmpty ? "Ajouter un pseudo" : username)
+                    .font(.custom("Futura-Bold", size: 22))
+                    .foregroundColor(username.isEmpty ? .white.opacity(0.3) : .white)
 
                 if !location.isEmpty {
-                    HStack(spacing: 3) {
-                        Image(systemName: "mappin")
-                            .font(.system(size: 10))
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin.circle.fill")
+                            .font(.system(size: 11))
                         Text(location)
-                            .font(.system(size: 12, weight: .light))
+                            .font(.system(size: 13, weight: .light))
                     }
                     .foregroundColor(.white.opacity(0.45))
                 }
 
                 if !bio.isEmpty {
                     Text(bio)
-                        .font(.system(size: 12, weight: .light))
+                        .font(.system(size: 13, weight: .light))
                         .foregroundColor(.white.opacity(0.5))
-                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .padding(.horizontal, 24)
                 }
             }
 
-            Spacer()
+            // Bouton modifier
+            Button { showEditSheet = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 13))
+                    Text("Modifier le profil")
+                        .font(.system(size: 14, weight: .medium))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 9)
+                .background(
+                    Capsule()
+                        .fill(Color(red: 140/255, green: 80/255, blue: 220/255).opacity(0.75))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.4), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 20)
-    }
-
-    // MARK: - Avatar 3D
-
-    private var avatarSection: some View {
-        ZStack(alignment: .bottom) {
-            Avatar3DView(avatarManager: avatarManager)
-                .frame(maxWidth: .infinity)
-                .frame(height: 300)
-
-            // Hint de rotation
-            Text("Glisser pour tourner")
-                .font(.system(size: 11, weight: .light))
-                .foregroundColor(.white.opacity(0.3))
-                .padding(.bottom, 10)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, 20)
     }
 
@@ -278,59 +262,131 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Sheet édition pseudo
+    // MARK: - Avatar 3D
 
-    @ViewBuilder
-    private var usernameEditSheet: some View {
-        NavigationStack {
-            ZStack {
-                Color(red: 15/255, green: 5/255, blue: 35/255).ignoresSafeArea()
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Nom d'utilisateur")
-                        .font(.custom("Futura-Bold", size: 18))
-                        .foregroundColor(.white)
-                        .padding(.top, 8)
-
-                    TextField("Nom d'utilisateur", text: $usernameBuffer)
-                        .font(.system(size: 17))
-                        .foregroundColor(.white)
-                        .tint(Color(red: 180/255, green: 120/255, blue: 255/255))
-                        .focused($usernameFocused)
-                        .padding(14)
-                        .background(Color.white.opacity(0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(Color.white.opacity(0.14), lineWidth: 1)
-                        )
-
-                    Spacer()
-                }
-                .padding(.horizontal, 24)
+    private var avatarSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Mon Avatar")
+                    .font(.custom("Futura-Bold", size: 16))
+                    .foregroundColor(.white)
+                Spacer()
             }
-            .navigationTitle("Modifier")
+            .padding(.horizontal, 20)
+
+            ZStack(alignment: .bottom) {
+                Avatar3DView(avatarManager: avatarManager)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 300)
+
+                Text("Glisser pour tourner")
+                    .font(.system(size: 11, weight: .light))
+                    .foregroundColor(.white.opacity(0.3))
+                    .padding(.bottom, 10)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
+            .padding(.horizontal, 20)
+        }
+    }
+}
+
+// MARK: - ProfileEditSheet
+
+struct ProfileEditSheet: View {
+    let auth: AuthManager
+    @Binding var username: String
+    @Binding var location: String
+    @Binding var bio: String
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var usernameBuffer = ""
+    @State private var locationBuffer = ""
+    @State private var bioBuffer = ""
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 12) {
+                    editSectionHeader("IDENTITÉ")
+                    GlassInputCard {
+                        AddFieldRow(icon: "at", placeholder: "Pseudo", text: $usernameBuffer)
+                        editDivider
+                        AddFieldRow(icon: "mappin.circle.fill", placeholder: "Ville", text: $locationBuffer)
+                    }
+                    editSectionHeader("BIO")
+                    GlassInputCard {
+                        AddMultilineRow(icon: "text.quote", placeholder: "Parle de toi...", text: $bioBuffer)
+                    }
+                    Spacer().frame(height: 20)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+            }
+            .background {
+                ZStack {
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 40/255, green: 10/255, blue: 90/255),
+                            Color(red: 15/255, green: 5/255, blue: 40/255)
+                        ]),
+                        center: .center, startRadius: 100, endRadius: 500
+                    )
+                    FluidBackgroundView()
+                }
+                .ignoresSafeArea()
+            }
+            .navigationTitle("Modifier le profil")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { editingUsername = false }
+                    Button("Annuler") { dismiss() }
                         .foregroundColor(.white.opacity(0.6))
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("OK") {
-                        let newUsername = usernameBuffer
-                        username = newUsername
-                        editingUsername = false
-                        Task { try? await auth.updateProfile(username: newUsername, location: location, bio: bio) }
-                    }
-                    .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255))
-                    .fontWeight(.semibold)
+                    Button("Enregistrer") { save() }
+                        .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255))
+                        .fontWeight(.semibold)
                 }
             }
         }
-        .presentationDetents([.height(220)])
-        .presentationBackground(Color(red: 15/255, green: 5/255, blue: 35/255))
-        .onAppear { usernameFocused = true }
+        .onAppear {
+            usernameBuffer = username
+            locationBuffer = location
+            bioBuffer = bio
+        }
+    }
+
+    private func editSectionHeader(_ text: String) -> some View {
+        HStack {
+            Text(text)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.white.opacity(0.35))
+                .tracking(1.5)
+            Spacer()
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 4)
+    }
+
+    private var editDivider: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.07))
+            .frame(height: 1)
+            .padding(.leading, 52)
+    }
+
+    private func save() {
+        username = usernameBuffer
+        location = locationBuffer
+        bio = bioBuffer
+        let u = usernameBuffer, l = locationBuffer, b = bioBuffer
+        dismiss()
+        Task { try? await auth.updateProfile(username: u, location: l, bio: b) }
     }
 }
 
