@@ -40,26 +40,27 @@ struct DressingItemAddView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                RadialGradient(
-                    gradient: Gradient(colors: [
-                        Color(red: 40/255, green: 10/255, blue: 90/255),
-                        Color(red: 15/255, green: 5/255, blue: 40/255)
-                    ]),
-                    center: .center, startRadius: 100, endRadius: 500
-                )
-                .ignoresSafeArea()
-                FluidBackgroundView()
-
-                ScrollView {
-                    VStack(spacing: 16) {
-                        photoSection
-                        fieldsSection
-                        Spacer().frame(height: 20)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
+            ScrollView {
+                VStack(spacing: 16) {
+                    photoSection
+                    fieldsSection
+                    Spacer().frame(height: 20)
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+            }
+            .background {
+                ZStack {
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 40/255, green: 10/255, blue: 90/255),
+                            Color(red: 15/255, green: 5/255, blue: 40/255)
+                        ]),
+                        center: .center, startRadius: 100, endRadius: 500
+                    )
+                    FluidBackgroundView()
+                }
+                .ignoresSafeArea()
             }
             .navigationTitle("Ajouter une pièce")
             .navigationBarTitleDisplayMode(.inline)

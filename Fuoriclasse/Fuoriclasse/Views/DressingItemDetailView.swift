@@ -7,15 +7,24 @@ struct DressingItemDetailView: View {
     @State private var showDeleteAlert = false
 
     var body: some View {
-        ZStack {
-            background
-
-            ScrollView {
-                VStack(spacing: 0) {
-                    imageHeader
-                    contentSection
-                }
+        ScrollView {
+            VStack(spacing: 0) {
+                imageHeader
+                contentSection
             }
+        }
+        .background {
+            ZStack {
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 40/255, green: 10/255, blue: 90/255),
+                        Color(red: 15/255, green: 5/255, blue: 40/255)
+                    ]),
+                    center: .center, startRadius: 100, endRadius: 500
+                )
+                FluidBackgroundView()
+            }
+            .ignoresSafeArea()
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -29,22 +38,6 @@ struct DressingItemDetailView: View {
         } message: {
             Text("Cette pièce sera supprimée définitivement.")
         }
-    }
-
-    // MARK: - Fond
-
-    private var background: some View {
-        ZStack {
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 40/255, green: 10/255, blue: 90/255),
-                    Color(red: 15/255, green: 5/255, blue: 40/255)
-                ]),
-                center: .center, startRadius: 100, endRadius: 500
-            )
-            FluidBackgroundView()
-        }
-        .ignoresSafeArea()
     }
 
     // MARK: - Image header

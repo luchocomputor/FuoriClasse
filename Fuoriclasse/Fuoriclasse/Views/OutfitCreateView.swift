@@ -26,74 +26,75 @@ struct OutfitCreateView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                RadialGradient(
-                    gradient: Gradient(colors: [
-                        Color(red: 40/255, green: 10/255, blue: 90/255),
-                        Color(red: 15/255, green: 5/255, blue: 40/255)
-                    ]),
-                    center: .center, startRadius: 100, endRadius: 500
-                )
-                .ignoresSafeArea()
-                FluidBackgroundView()
+            ScrollView {
+                VStack(spacing: 16) {
+                    sectionHeader("NOM DE LA TENUE")
+                    GlassInputCard {
+                        AddFieldRow(icon: "tshirt.fill", placeholder: "Nom de la tenue *", text: $title)
+                    }
 
-                ScrollView {
-                    VStack(spacing: 16) {
-                        sectionHeader("NOM DE LA TENUE")
-                        GlassInputCard {
-                            AddFieldRow(icon: "tshirt.fill", placeholder: "Nom de la tenue *", text: $title)
-                        }
+                    sectionHeader("STYLE & SAISON")
+                    GlassInputCard {
+                        AddPickerRow(icon: "tag.fill", label: "Style", selection: $style, options: styles)
+                        formDivider
+                        AddPickerRow(icon: "calendar", label: "Saison", selection: $season, options: seasons)
+                    }
 
-                        sectionHeader("STYLE & SAISON")
-                        GlassInputCard {
-                            AddPickerRow(icon: "tag.fill", label: "Style", selection: $style, options: styles)
-                            formDivider
-                            AddPickerRow(icon: "calendar", label: "Saison", selection: $season, options: seasons)
-                        }
+                    sectionHeader("NOTES")
+                    GlassInputCard {
+                        AddMultilineRow(icon: "note.text", placeholder: "Notes...", text: $notes)
+                    }
 
-                        sectionHeader("NOTES")
-                        GlassInputCard {
-                            AddMultilineRow(icon: "note.text", placeholder: "Notes...", text: $notes)
-                        }
+                    let selCount = selectedIDs.count
+                    sectionHeader("PIÈCES\(selCount > 0 ? " (\(selCount) sélectionnée\(selCount > 1 ? "s" : ""))" : "")")
 
-                        let selCount = selectedIDs.count
-                        sectionHeader("PIÈCES\(selCount > 0 ? " (\(selCount) sélectionnée\(selCount > 1 ? "s" : ""))" : "")")
-
-                        if allItems.isEmpty {
-                            GlassCard {
-                                VStack(spacing: 10) {
-                                    Image(systemName: "hanger")
-                                        .font(.system(size: 28))
-                                        .foregroundColor(.white.opacity(0.2))
-                                    Text("Ton dressing est vide")
-                                        .font(.system(size: 13, weight: .light))
-                                        .foregroundColor(.white.opacity(0.35))
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 24)
+                    if allItems.isEmpty {
+                        GlassCard {
+                            VStack(spacing: 10) {
+                                Image(systemName: "hanger")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(.white.opacity(0.2))
+                                Text("Ton dressing est vide")
+                                    .font(.system(size: 13, weight: .light))
+                                    .foregroundColor(.white.opacity(0.35))
                             }
-                        } else {
-                            LazyVGrid(columns: columns, spacing: 10) {
-                                ForEach(allItems, id: \.objectID) { item in
-                                    ItemSelectionCell(
-                                        item: item,
-                                        isSelected: selectedIDs.contains(item.objectID)
-                                    ) {
-                                        if selectedIDs.contains(item.objectID) {
-                                            selectedIDs.remove(item.objectID)
-                                        } else {
-                                            selectedIDs.insert(item.objectID)
-                                        }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
+                        }
+                    } else {
+                        LazyVGrid(columns: columns, spacing: 10) {
+                            ForEach(allItems, id: \.objectID) { item in
+                                ItemSelectionCell(
+                                    item: item,
+                                    isSelected: selectedIDs.contains(item.objectID)
+                                ) {
+                                    if selectedIDs.contains(item.objectID) {
+                                        selectedIDs.remove(item.objectID)
+                                    } else {
+                                        selectedIDs.insert(item.objectID)
                                     }
                                 }
                             }
                         }
-
-                        Spacer().frame(height: 20)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
+
+                    Spacer().frame(height: 20)
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+            }
+            .background {
+                ZStack {
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 40/255, green: 10/255, blue: 90/255),
+                            Color(red: 15/255, green: 5/255, blue: 40/255)
+                        ]),
+                        center: .center, startRadius: 100, endRadius: 500
+                    )
+                    FluidBackgroundView()
+                }
+                .ignoresSafeArea()
             }
             .navigationTitle("Créer une tenue")
             .navigationBarTitleDisplayMode(.inline)

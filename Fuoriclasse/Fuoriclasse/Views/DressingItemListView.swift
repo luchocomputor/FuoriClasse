@@ -17,57 +17,52 @@ struct DressingItemListView: View {
     @State private var showingAddSheet = false
 
     var body: some View {
-        ZStack {
-            // Fond
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 40/255, green: 10/255, blue: 90/255),
-                    Color(red: 15/255, green: 5/255, blue: 40/255)
-                ]),
-                center: .center, startRadius: 100, endRadius: 500
-            )
+        VStack(spacing: 0) {
+            dressingSegmentedControl
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 6)
+
+            if selectedTab == 0 {
+                piecesContent
+            } else {
+                tenuesContent
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .bottom) {
+            Button { showingAddSheet = true } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text(selectedTab == 0 ? "Ajouter une pièce" : "Créer une tenue")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.vertical, 14)
+                .padding(.horizontal, 28)
+                .background(
+                    Capsule()
+                        .fill(Color(red: 120/255, green: 60/255, blue: 200/255))
+                        .shadow(color: Color(red: 120/255, green: 60/255, blue: 200/255).opacity(0.5),
+                                radius: 12, x: 0, y: 4)
+                )
+            }
+            .buttonStyle(.plain)
+            .padding(.bottom, 20)
+        }
+        .background {
+            ZStack {
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 40/255, green: 10/255, blue: 90/255),
+                        Color(red: 15/255, green: 5/255, blue: 40/255)
+                    ]),
+                    center: .center, startRadius: 100, endRadius: 500
+                )
+                FluidBackgroundView()
+            }
             .ignoresSafeArea()
-            FluidBackgroundView()
-
-            // Contenu
-            VStack(spacing: 0) {
-                // Segmented control SwiftUI natif (évite les problèmes de largeur UIKit dans ZStack)
-                dressingSegmentedControl
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 6)
-
-                if selectedTab == 0 {
-                    piecesContent
-                } else {
-                    tenuesContent
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            // Bouton flottant
-            VStack {
-                Spacer()
-                Button { showingAddSheet = true } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 16, weight: .semibold))
-                        Text(selectedTab == 0 ? "Ajouter une pièce" : "Créer une tenue")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.vertical, 14)
-                    .padding(.horizontal, 28)
-                    .background(
-                        Capsule()
-                            .fill(Color(red: 120/255, green: 60/255, blue: 200/255))
-                            .shadow(color: Color(red: 120/255, green: 60/255, blue: 200/255).opacity(0.5),
-                                    radius: 12, x: 0, y: 4)
-                    )
-                }
-                .buttonStyle(.plain)
-                .padding(.bottom, 20)
-            }
         }
         .navigationTitle("Mon Dressing")
         .navigationBarTitleDisplayMode(.large)

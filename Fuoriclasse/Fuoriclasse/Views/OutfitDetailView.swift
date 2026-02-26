@@ -8,22 +8,31 @@ struct OutfitDetailView: View {
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     var body: some View {
-        ZStack {
-            background
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    headerSection
-                    itemsGrid
-                    if let notes = outfit.notes, !notes.isEmpty {
-                        notesCard(notes)
-                    }
-                    actionButtons
-                    Spacer().frame(height: 20)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                headerSection
+                itemsGrid
+                if let notes = outfit.notes, !notes.isEmpty {
+                    notesCard(notes)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 20)
+                actionButtons
+                Spacer().frame(height: 20)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 20)
+        }
+        .background {
+            ZStack {
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 40/255, green: 10/255, blue: 90/255),
+                        Color(red: 15/255, green: 5/255, blue: 40/255)
+                    ]),
+                    center: .center, startRadius: 100, endRadius: 500
+                )
+                FluidBackgroundView()
+            }
+            .ignoresSafeArea()
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -34,22 +43,6 @@ struct OutfitDetailView: View {
         } message: {
             Text("La tenue sera supprimée. Les pièces sont conservées.")
         }
-    }
-
-    // MARK: - Fond
-
-    private var background: some View {
-        ZStack {
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 40/255, green: 10/255, blue: 90/255),
-                    Color(red: 15/255, green: 5/255, blue: 40/255)
-                ]),
-                center: .center, startRadius: 100, endRadius: 500
-            )
-            FluidBackgroundView()
-        }
-        .ignoresSafeArea()
     }
 
     // MARK: - Header
