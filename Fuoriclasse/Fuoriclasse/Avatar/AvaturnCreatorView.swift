@@ -140,15 +140,17 @@ struct AvaturnCreatorView: UIViewRepresentable {
                 }
             }
 
-            // Format officiel : {"eventName": "v2.avatar.exported", "data": {"glbUrl": "..."}}
+            // Format officiel : {"eventName": "v2.avatar.exported", "data": {"usdzUrl": "...", "glbUrl": "..."}}
+            // On préfère usdzUrl (format natif iOS, pas de Draco) puis glbUrl en fallback
             if let event = dict["eventName"] as? String,
                event == "v2.avatar.exported",
-               let data = dict["data"] as? [String: Any],
-               let glbStr = data["glbUrl"] as? String {
-                fire(glbStr)
-                // Export automatique
-                if let url = URL(string: glbStr) {
-                    DispatchQueue.main.async { self.onExported(url) }
+               let data = dict["data"] as? [String: Any] {
+                let urlStr = (data["usdzUrl"] as? String) ?? (data["glbUrl"] as? String)
+                if let urlStr {
+                    fire(urlStr)
+                    if let url = URL(string: urlStr) {
+                        DispatchQueue.main.async { self.onExported(url) }
+                    }
                 }
                 return
             }

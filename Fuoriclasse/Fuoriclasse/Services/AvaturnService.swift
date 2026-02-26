@@ -33,15 +33,17 @@ actor AvaturnService {
     // MARK: - Chemin local
 
     /// URL locale du fichier avatar (Documents/avatar.glb)
-    nonisolated var localAvatarURL: URL {
-        FileManager.default
-            .urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("avatar.glb")
+    /// Cherche l'avatar local (usdz en priorité, puis glb)
+    nonisolated var localAvatarURL: URL? {
+        let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        for ext in ["usdz", "glb"] {
+            let url = base.appendingPathComponent("avatar.\(ext)")
+            if FileManager.default.fileExists(atPath: url.path) { return url }
+        }
+        return nil
     }
 
-    nonisolated var hasAvatar: Bool {
-        FileManager.default.fileExists(atPath: localAvatarURL.path)
-    }
+    nonisolated var hasAvatar: Bool { localAvatarURL != nil }
 
     // MARK: - Download
 
@@ -53,7 +55,6 @@ actor AvaturnService {
         let data: Data
 
         if source.scheme == "data" {
-            // DataURL : extraire la partie base64 après la virgule
             let raw = source.absoluteString
             guard let commaRange = raw.range(of: ",") else { throw AvaturnError.downloadFailed }
             let b64 = String(raw[commaRange.upperBound...])
@@ -62,7 +63,6 @@ actor AvaturnService {
             }
             data = decoded
         } else {
-            // HttpURL : téléchargement réseau standard
             let (downloaded, response) = try await URLSession.shared.data(from: source)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else {
                 throw AvaturnError.downloadFailed
@@ -70,13 +70,25 @@ actor AvaturnService {
             data = downloaded
         }
 
-        let local = localAvatarURL
+        // Sauvegarde avec la bonne extension (usdz ou glb)
+        let ext  = source.pathExtension.lowercased()
+        let name = (ext == "usdz" || ext == "glb") ? "avatar.\(ext)" : "avatar.glb"
+        let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let local = base.appendingPathComponent(name)
+
+        // Supprime les anciens fichiers avatar (évite les conflits d'extension)
+        for old in ["avatar.usdz", "avatar.glb"] {
+            try? FileManager.default.removeItem(at: base.appendingPathComponent(old))
+        }
         try data.write(to: local, options: .atomic)
         return local
     }
 
     /// Supprime l'avatar local
     nonisolated func deleteAvatar() {
-        try? FileManager.default.removeItem(at: localAvatarURL)
+        let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        for ext in ["usdz", "glb"] {
+            try? FileManager.default.removeItem(at: base.appendingPathComponent("avatar.\(ext)"))
+        }
     }
 }

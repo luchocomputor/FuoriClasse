@@ -1,5 +1,4 @@
 import Foundation
-import Combine
 
 @MainActor
 final class AvatarManager: ObservableObject {
@@ -12,14 +11,10 @@ final class AvatarManager: ObservableObject {
         loadLocalAvatar()
     }
 
-    /// Charge l'avatar depuis le filesystem (Documents/avatar.glb).
-    /// Appeler en onAppear si plusieurs vues utilisent la même instance.
     func loadLocalAvatar() {
-        let url = AvaturnService.shared.localAvatarURL
-        avatarURL = FileManager.default.fileExists(atPath: url.path) ? url : nil
+        avatarURL = AvaturnService.shared.localAvatarURL
     }
 
-    /// Supprime l'avatar local et réinitialise l'état.
     func deleteAvatar() {
         AvaturnService.shared.deleteAvatar()
         avatarURL = nil
