@@ -154,7 +154,8 @@ struct AvatarView: View {
                 capturedGLBURL: $capturedGLBURL,
                 coordinator: $avaturnCoordinator
             ) { remoteURL in
-                // Export automatique (v2.avatar.exported ou fetch intercept)
+                // Export automatique : ferme la sheet puis lance le téléchargement
+                showCreator = false
                 handleExport(url: remoteURL)
             }
             .ignoresSafeArea()

@@ -20,9 +20,16 @@ struct ProfileView: View {
     @State private var bio              = ""
 
     @State private var profileImageData: Data? = UserDefaults.standard.data(forKey: "profile_photo")
-    @State private var showPhotoPicker  = false
-    @State private var showEditSheet    = false
-    @State private var showSettings     = false
+    @State private var showPhotoPicker      = false
+    @State private var showEditSheet        = false
+    @State private var showSettings         = false
+
+    // Avatar création
+    @State private var showAvatarCreator    = false
+    @State private var isDownloadingAvatar  = false
+    @State private var avatarDownloadError: String?
+    @State private var capturedGLBURL: URL?
+    @State private var avaturnCoordinator: AvaturnCreatorView.Coordinator?
 
     private var itemCount: Int { dressingItems.count }
 
@@ -78,6 +85,9 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showEditSheet, onDismiss: { Task { await reloadProfile() } }) {
             ProfileEditSheet(auth: auth, username: $username, location: $location, bio: $bio)
+        }
+        .sheet(isPresented: $showAvatarCreator, onDismiss: { capturedGLBURL = nil }) {
+            avatarCreatorSheet
         }
         .task { await reloadProfile() }
     }
@@ -271,25 +281,156 @@ struct ProfileView: View {
                     .font(.custom("Futura-Bold", size: 16))
                     .foregroundColor(.white)
                 Spacer()
+                if avatarManager.hasAvatar {
+                    Button { showAvatarCreator = true } label: {
+                        Label("Recréer", systemImage: "arrow.clockwise")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white.opacity(0.45))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .padding(.horizontal, 20)
 
-            ZStack(alignment: .bottom) {
-                Avatar3DView(avatarManager: avatarManager)
+            if isDownloadingAvatar {
+                HStack(spacing: 12) {
+                    ProgressView()
+                        .tint(Color(red: 160/255, green: 100/255, blue: 240/255))
+                    Text("Téléchargement…")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.6))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            } else if avatarManager.hasAvatar {
+                ZStack(alignment: .bottom) {
+                    Avatar3DView(avatarManager: avatarManager)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 320)
+                    Text("Glisser pour tourner")
+                        .font(.system(size: 11, weight: .light))
+                        .foregroundColor(.white.opacity(0.3))
+                        .padding(.bottom, 10)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+                .padding(.horizontal, 20)
+            } else {
+                // Empty state
+                GlassCard {
+                    VStack(spacing: 14) {
+                        Image(systemName: "person.crop.circle.badge.plus")
+                            .font(.system(size: 36))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [Color(red: 160/255, green: 100/255, blue: 240/255),
+                                             Color(red: 100/255, green: 60/255, blue: 180/255)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                )
+                            )
+                        Text("Génère ton avatar 3D")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.white)
+                        if let err = avatarDownloadError {
+                            Text(err)
+                                .font(.system(size: 12))
+                                .foregroundColor(.red.opacity(0.8))
+                                .multilineTextAlignment(.center)
+                        }
+                        Button { showAvatarCreator = true } label: {
+                            Label("Créer mon avatar", systemImage: "sparkles")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 22)
+                                .padding(.vertical, 11)
+                                .background(
+                                    Capsule().fill(
+                                        LinearGradient(
+                                            colors: [Color(red: 140/255, green: 80/255, blue: 220/255),
+                                                     Color(red: 100/255, green: 50/255, blue: 180/255)],
+                                            startPoint: .leading, endPoint: .trailing
+                                        )
+                                    )
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
                     .frame(maxWidth: .infinity)
-                    .frame(height: 300)
-
-                Text("Glisser pour tourner")
-                    .font(.system(size: 11, weight: .light))
-                    .foregroundColor(.white.opacity(0.3))
-                    .padding(.bottom, 10)
+                    .padding(.vertical, 28)
+                }
+                .padding(.horizontal, 20)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-            )
-            .padding(.horizontal, 20)
+        }
+    }
+
+    // MARK: - Avatar creator sheet
+
+    private var avatarCreatorSheet: some View {
+        NavigationStack {
+            AvaturnCreatorView(
+                embedURL: AvaturnService.shared.embedURL,
+                capturedGLBURL: $capturedGLBURL,
+                coordinator: $avaturnCoordinator
+            ) { remoteURL in
+                showAvatarCreator = false
+                handleAvatarExport(url: remoteURL)
+            }
+            .ignoresSafeArea()
+            .navigationTitle("Créer mon avatar")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") {
+                        capturedGLBURL = nil
+                        showAvatarCreator = false
+                    }
+                    .foregroundColor(.white.opacity(0.65))
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        if let url = capturedGLBURL {
+                            showAvatarCreator = false
+                            handleAvatarExport(url: url)
+                        } else {
+                            avaturnCoordinator?.evaluateExtractURL { _ in }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            if capturedGLBURL != nil {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(Color(red: 140/255, green: 220/255, blue: 130/255))
+                            }
+                            Text("Importer").fontWeight(.semibold)
+                        }
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+    }
+
+    // MARK: - Export handler
+
+    private func handleAvatarExport(url: URL) {
+        isDownloadingAvatar = true
+        avatarDownloadError = nil
+        Task {
+            do {
+                let local = try await AvaturnService.shared.downloadAvatar(from: url)
+                await MainActor.run {
+                    avatarManager.avatarURL = local
+                    isDownloadingAvatar = false
+                }
+            } catch {
+                await MainActor.run {
+                    avatarDownloadError = error.localizedDescription
+                    isDownloadingAvatar = false
+                }
+            }
         }
     }
 }

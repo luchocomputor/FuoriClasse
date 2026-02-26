@@ -14,78 +14,8 @@ struct AvaturnCreatorView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        // Message handler : reçoit les postMessages relayés par le wrapper HTML
         config.userContentController.add(context.coordinator, name: "avaturn")
-
-        // ── Bridge JS ─────────────────────────────────────────────────────
-        // Stratégie principale : simuler un parent iframe → Avaturn pense être
-        // embarqué et déclenche window.parent.postMessage("v2.avatar.exported")
-        // Stratégie fallback  : bouton injecté dans la page + interception API
-        let bridge = """
-        (function() {
-
-          // ① Fake parent frame : Avaturn vérifie window !== window.top
-          //   et n'envoie postMessage QUE si embedded. On le trompe.
-          var _fakeParent = {
-            postMessage: function(data) {
-              try {
-                var p = (typeof data === 'string') ? JSON.parse(data) : data;
-                window.webkit.messageHandlers.avaturn.postMessage(p);
-              } catch(_) {
-                window.webkit.messageHandlers.avaturn.postMessage({ raw: String(data) });
-              }
-            }
-          };
-          try {
-            Object.defineProperty(window, 'parent', { get: function(){ return _fakeParent; }, configurable: true });
-            Object.defineProperty(window, 'top',    { get: function(){ return _fakeParent; }, configurable: true });
-          } catch(e) {}
-
-          // ② window.addEventListener('message') bridge (postMessage natif)
-          function relay(data) {
-            try {
-              var p = (typeof data === 'string') ? JSON.parse(data) : data;
-              window.webkit.messageHandlers.avaturn.postMessage(p);
-            } catch(_) {
-              window.webkit.messageHandlers.avaturn.postMessage({ raw: String(data) });
-            }
-          }
-          window.addEventListener('message', function(e) { relay(e.data); }, false);
-          var _pm = window.postMessage.bind(window);
-          window.postMessage = function(msg, t) { relay(msg); _pm(msg, t || '*'); };
-
-          // ③ Capture URL .glb/.usdz via fetch (réponses réseau Avaturn)
-          var _fetch = window.fetch.bind(window);
-          window.fetch = function(resource, opts) {
-            var url = typeof resource === 'string' ? resource
-                    : (resource && resource.url ? resource.url : '');
-            var promise = _fetch.apply(window, arguments);
-            // Capture URL de requête si c'est un modèle 3D
-            if (url && /\\.(glb|usdz)(\\?|$)/i.test(url)) {
-              window.webkit.messageHandlers.avaturn.postMessage({ glbUrl: url });
-            }
-            // Capture URL depuis la réponse JSON d'Avaturn (liste d'avatars)
-            if (url && url.includes('avaturn.me')) {
-              promise.then(function(res) {
-                var clone = res.clone();
-                clone.json().then(function(json) {
-                  var items = Array.isArray(json) ? json : (json.items || json.avatars || [json]);
-                  for (var item of items) {
-                    var u = item.modelUrl || item.glbUrl || item.url || item.model_url;
-                    if (u && /\\.(glb|usdz)/i.test(u)) {
-                      window.webkit.messageHandlers.avaturn.postMessage({ glbUrl: u });
-                    }
-                  }
-                }).catch(function(){});
-              }).catch(function(){});
-            }
-            return promise;
-          };
-
-
-        })();
-        """
-        let script = WKUserScript(source: bridge, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
-        config.userContentController.addUserScript(script)
 
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
@@ -104,8 +34,10 @@ struct AvaturnCreatorView: UIViewRepresentable {
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
+    // MARK: - Chargement
+
     private func loadEditor(in webView: WKWebView) {
-        guard !embedURL.isEmpty, let url = URL(string: embedURL) else {
+        guard !embedURL.isEmpty, URL(string: embedURL) != nil else {
             let html = """
             <html><body style="background:#0f0528;display:flex;align-items:center;
             justify-content:center;height:100vh;margin:0;">
@@ -118,7 +50,50 @@ struct AvaturnCreatorView: UIViewRepresentable {
             webView.loadHTMLString(html, baseURL: nil)
             return
         }
-        webView.load(URLRequest(url: url))
+
+        // ── Stratégie iframe ──────────────────────────────────────────────
+        // Avaturn est conçu pour fonctionner embarqué dans un <iframe>.
+        // Dans ce contexte, window.parent !== window → Avaturn envoie
+        // automatiquement window.parent.postMessage("v2.avatar.exported", ...)
+        // sans aucun trick JS. Le parent HTML intercepte et transfère à natif.
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            html, body { width: 100%; height: 100%; overflow: hidden; background: #0f0528; }
+            iframe { width: 100%; height: 100%; border: none; display: block; }
+          </style>
+        </head>
+        <body>
+          <iframe
+            id="av"
+            src="\(embedURL)"
+            allow="camera *; microphone *; autoplay; clipboard-write; xr-spatial-tracking"
+          ></iframe>
+          <script>
+            // Test : vérifie que le canal webkit est disponible dès le chargement
+            try {
+              window.webkit.messageHandlers.avaturn.postMessage({ type: 'wrapper_ready' });
+            } catch(e) {}
+
+            // Relais postMessage iframe → natif
+            window.addEventListener('message', function(e) {
+              try {
+                var d = (typeof e.data === 'string') ? JSON.parse(e.data) : e.data;
+                window.webkit.messageHandlers.avaturn.postMessage(d);
+              } catch(_) {
+                window.webkit.messageHandlers.avaturn.postMessage({ raw: String(e.data) });
+              }
+            }, false);
+          </script>
+        </body>
+        </html>
+        """
+        // baseURL = domaine Avaturn → la page wrapper est traitée comme venant de ce domaine
+        webView.loadHTMLString(html, baseURL: URL(string: "https://fuoriclasse.avaturn.dev"))
     }
 
     // MARK: - Coordinator
@@ -133,7 +108,7 @@ struct AvaturnCreatorView: UIViewRepresentable {
             self.onExported = onExported
         }
 
-        // ── Permission caméra iOS 15+ ──────────────────────────────────────
+        // ── Permission caméra (frame principal + sous-frames) ─────────────
         func webView(_ webView: WKWebView,
                      requestMediaCapturePermissionFor origin: WKSecurityOrigin,
                      initiatedByFrame frame: WKFrameInfo,
@@ -144,6 +119,7 @@ struct AvaturnCreatorView: UIViewRepresentable {
 
         // ── Messages JS reçus ─────────────────────────────────────────────
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+            print("🟣 [Avaturn] message reçu — name=\(message.name) body=\(message.body)")
             guard message.name == "avaturn" else { return }
 
             var dict: [String: Any]?
@@ -156,72 +132,68 @@ struct AvaturnCreatorView: UIViewRepresentable {
             }
             guard let dict else { return }
 
-            // Helper : capture URL et déclenche onExported
             func fire(_ urlString: String) {
                 guard let url = URL(string: urlString) else { return }
                 DispatchQueue.main.async {
                     self.capturedGLBURL = url
-                    self.onExported(url)        // export automatique immédiat
+                    self.onExported(url)
                 }
             }
 
-            // Format officiel : {"eventName": "v2.avatar.exported", "data": {"usdzUrl","glbUrl"}}
-            if let event = dict["eventName"] as? String, event == "v2.avatar.exported",
+            // ── v2 export (format officiel) ───────────────────────────────
+            if let event = dict["eventName"] as? String,
+               event == "v2.avatar.exported" || event == "v1.avatar.exported",
                let data = dict["data"] as? [String: Any] {
+                print("✅ [Avaturn] Export event reçu:", event)
                 let urlStr = (data["usdzUrl"] as? String) ?? (data["glbUrl"] as? String)
+                    ?? (data["modelUrl"] as? String) ?? (data["url"] as? String)
                 if let urlStr { fire(urlStr) }
                 return
             }
 
-            // URL capturée via fetch/XHR ou bouton injecté
-            if let glbStr = dict["glbUrl"] as? String { fire(glbStr); return }
-            for key in ["usdzUrl", "url", "avatarUrl"] {
-                if let s = dict[key] as? String { fire(s); return }
+            // ── RESPONSE à un REQUEST d'export (pattern v1 SDK) ───────────
+            if let type_ = dict["type"] as? String, type_ == "RESPONSE",
+               let key = dict["key"] as? String,
+               (key.contains("export") || key.contains("avatar")),
+               let data = dict["data"] as? [String: Any] {
+                print("✅ [Avaturn] RESPONSE export reçu, key:", key)
+                let urlStr = (data["usdzUrl"] as? String) ?? (data["glbUrl"] as? String)
+                    ?? (data["modelUrl"] as? String) ?? (data["url"] as? String)
+                if let urlStr { fire(urlStr) }
+                return
             }
 
-            // Token Firebase : demande à l'app de fetch l'avatar via API Avaturn
-            if let token = dict["firebaseToken"] as? String {
-                Task {
-                    if let url = try? await AvaturnService.shared.fetchLatestAvatarURL(bearerToken: token) {
-                        DispatchQueue.main.async { self.onExported(url) }
-                    }
-                }
-                return
+            // ── URL directe dans le message ───────────────────────────────
+            if let glbStr = dict["glbUrl"] as? String { fire(glbStr); return }
+            for key in ["usdzUrl", "url", "avatarUrl", "modelUrl"] {
+                if let s = dict[key] as? String, s.hasPrefix("http") { fire(s); return }
             }
         }
 
-        // ── Évaluation JS manuelle (fallback bouton natif "Importer") ──────
+        // ── Demande d'export à l'iframe + fallback localStorage ───────────
         func evaluateExtractURL(completion: @escaping (URL?) -> Void) {
             guard let wv = webView else { completion(nil); return }
-            // Cherche aussi dans l'URL courante de la page (certains SPA mettent l'avatar ID dans l'URL)
+            print("🔵 [Avaturn] Envoi REQUEST export à l'iframe...")
+            // Envoie des messages REQUEST à l'iframe pour différentes versions du SDK
             let js = """
             (function() {
-              var stores = [localStorage, sessionStorage];
-              for (var s of stores) {
-                for (var k of Object.keys(s)) {
-                  try {
-                    var raw = s.getItem(k);
-                    var v = JSON.parse(raw);
-                    for (var f of ['modelUrl','glbUrl','url','avatarUrl','model_url']) {
-                      if (v && v[f] && /\\.(glb|usdz)/i.test(String(v[f]))) return v[f];
-                    }
-                    var m = raw && raw.match(/"(https?:\\/\\/[^"]*\\.(glb|usdz)[^"]*)"/i);
-                    if (m) return m[1];
-                  } catch(e) {}
-                }
-              }
-              return window.location.href;
+              var iframe = document.getElementById('av');
+              if (!iframe || !iframe.contentWindow) return 'no-iframe';
+              var reqs = [
+                {type:'REQUEST', key:'v2.avatar.export', source:'v2.host', date:Date.now()},
+                {type:'REQUEST', key:'v1.avatar.export', source:'v1.host', date:Date.now()},
+                {eventName:'request.avatar.export'}
+              ];
+              reqs.forEach(function(r){ iframe.contentWindow.postMessage(JSON.stringify(r),'*'); });
+              return 'sent';
             })()
             """
             wv.evaluateJavaScript(js) { result, _ in
-                if let s = result as? String, let url = URL(string: s), url.scheme == "https" {
-                    // Si l'URL est une page web (pas un fichier 3D), retourner nil
-                    let ext = url.pathExtension.lowercased()
-                    completion((ext == "glb" || ext == "usdz") ? url : nil)
-                } else {
-                    completion(nil)
-                }
+                print("🔵 [Avaturn] REQUEST résultat:", result ?? "nil")
             }
+            // La vraie réponse arrivera via userContentController → onExported
+            // Ce timeout est juste pour fermer la boucle si rien ne revient
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { completion(nil) }
         }
     }
 }

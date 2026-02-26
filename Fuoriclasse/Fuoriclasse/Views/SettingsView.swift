@@ -12,7 +12,6 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    avatarCard
                     infoCard
                     settingsCard
                     logoutCard
