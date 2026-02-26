@@ -49,12 +49,41 @@ extension DressingItem {
     @NSManaged public var fit: String?
     @NSManaged public var style: String?
     @NSManaged public var price: String?
+    @NSManaged public var sourceURL: String?
+    // Journal de port
+    @NSManaged public var wearCount: Int32
+    @NSManaged public var lastWorn: Date?
     @NSManaged public var outfits: NSSet?
 
     // Computed property pour manipuler l’énum DotClass
     var dotClassEnum: DotClass {
         get { DotClass(rawValue: dotClass) ?? .green }
         set { dotClass = newValue.rawValue }
+    }
+
+    // MARK: - Helpers journal de port
+
+    var wornToday: Bool {
+        guard let last = lastWorn else { return false }
+        return Calendar.current.isDateInToday(last)
+    }
+
+    var lastWornText: String {
+        guard let date = lastWorn else { return "Jamais" }
+        let days = Calendar.current.dateComponents([.day], from: date, to: Date()).day ?? 0
+        switch days {
+        case 0:  return "Aujourd’hui"
+        case 1:  return "Hier"
+        default: return "Il y a \(days)j"
+        }
+    }
+
+    var costPerWear: String? {
+        guard wearCount > 0,
+              let priceStr = price,
+              let p = Double(priceStr.replacingOccurrences(of: ",", with: "."))
+        else { return nil }
+        return String(format: "%.2f €", p / Double(wearCount))
     }
 }
 

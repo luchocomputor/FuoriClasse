@@ -58,10 +58,17 @@ struct DressingItemCard: View {
                     }
                 }
 
-                if !item.size.isEmpty {
-                    Text("Taille \(item.size)")
-                        .font(.system(size: 11, weight: .light))
-                        .foregroundColor(.white.opacity(0.35))
+                HStack(spacing: 6) {
+                    if !item.size.isEmpty {
+                        Text("Taille \(item.size)")
+                            .font(.system(size: 11, weight: .light))
+                            .foregroundColor(.white.opacity(0.35))
+                    }
+                    if item.wearCount > 0 {
+                        Text("· \(item.wearCount) port\(item.wearCount > 1 ? "s" : "")")
+                            .font(.system(size: 11, weight: .light))
+                            .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.6))
+                    }
                 }
             }
 

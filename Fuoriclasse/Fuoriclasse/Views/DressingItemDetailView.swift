@@ -5,6 +5,8 @@ struct DressingItemDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingEdit = false
     @State private var showDeleteAlert = false
+    @State private var wearCount: Int32 = 0
+    @State private var lastWorn: Date? = nil
 
     var body: some View {
         ScrollView {
@@ -29,6 +31,7 @@ struct DressingItemDetailView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .onAppear { wearCount = item.wearCount; lastWorn = item.lastWorn }
         .sheet(isPresented: $showingEdit) {
             DressingItemEditView(isPresented: $showingEdit, item: item)
         }
@@ -38,6 +41,97 @@ struct DressingItemDetailView: View {
         } message: {
             Text("Cette pièce sera supprimée définitivement.")
         }
+    }
+
+    // MARK: - Journal de port
+
+    private var wearCard: some View {
+        GlassCard {
+            VStack(spacing: 0) {
+                // Stats (si déjà porté)
+                if wearCount > 0 {
+                    HStack(spacing: 0) {
+                        wearStat(value: "\(wearCount)", label: "ports")
+                        wearStatSeparator
+                        wearStat(value: lastWornText, label: "dernier port")
+                        if let cpp = costPerWear {
+                            wearStatSeparator
+                            wearStat(value: cpp, label: "par port")
+                        }
+                    }
+                    .padding(.vertical, 14)
+
+                    Rectangle()
+                        .fill(Color.white.opacity(0.07))
+                        .frame(height: 1)
+                }
+
+                // Bouton CTA
+                Button { logWear() } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: wornToday ? "checkmark.circle.fill" : "tshirt.fill")
+                            .font(.system(size: 15))
+                        Text(wornToday ? "Porté aujourd'hui" : "Porter aujourd'hui")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                    .foregroundColor(wornToday ? .white.opacity(0.35) : .white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                }
+                .disabled(wornToday)
+            }
+        }
+    }
+
+    private func wearStat(value: String, label: String) -> some View {
+        VStack(spacing: 3) {
+            Text(value)
+                .font(.custom("Futura-Bold", size: 18))
+                .foregroundColor(.white)
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.white.opacity(0.4))
+                .tracking(0.3)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var wearStatSeparator: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.12))
+            .frame(width: 1, height: 28)
+    }
+
+    private var wornToday: Bool {
+        guard let last = lastWorn else { return false }
+        return Calendar.current.isDateInToday(last)
+    }
+
+    private var lastWornText: String {
+        guard let date = lastWorn else { return "Jamais" }
+        let days = Calendar.current.dateComponents([.day], from: date, to: Date()).day ?? 0
+        switch days {
+        case 0:  return "Aujourd'hui"
+        case 1:  return "Hier"
+        default: return "Il y a \(days)j"
+        }
+    }
+
+    private var costPerWear: String? {
+        guard wearCount > 0,
+              let priceStr = item.price,
+              let p = Double(priceStr.replacingOccurrences(of: ",", with: "."))
+        else { return nil }
+        return String(format: "%.2f €", p / Double(wearCount))
+    }
+
+    private func logWear() {
+        item.wearCount += 1
+        item.lastWorn   = Date()
+        wearCount = item.wearCount
+        lastWorn  = item.lastWorn
+        CoreDataController.shared.save()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
     // MARK: - Image header
@@ -89,6 +183,9 @@ struct DressingItemDetailView: View {
 
             // Titre + marque + chips
             titleBlock
+
+            // Journal de port
+            wearCard
 
             // Caractéristiques
             charactCard

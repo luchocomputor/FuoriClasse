@@ -510,6 +510,7 @@ struct DressingItemAddView: View {
         newItem.image          = photoData
         newItem.dotClass       = dotClass.rawValue
         newItem.additionalInfo = additionalInfo
+        newItem.sourceURL      = (mode == .online && !sourceURL.isEmpty) ? sourceURL : nil
         CoreDataController.shared.save()
         isPresented = false
     }

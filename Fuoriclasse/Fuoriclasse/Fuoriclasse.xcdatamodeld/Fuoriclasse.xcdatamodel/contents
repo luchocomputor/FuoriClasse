@@ -15,6 +15,9 @@
         <attribute name="size" optional="YES" attributeType="String"/>
         <attribute name="style" optional="YES" attributeType="String"/>
         <attribute name="title" optional="YES" attributeType="String"/>
+        <attribute name="wearCount" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lastWorn" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="sourceURL" optional="YES" attributeType="String"/>
         <relationship name="outfits" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Outfit" inverseName="items" inverseEntity="Outfit"/>
     </entity>
     <entity name="Outfit" representedClassName="Outfit" syncable="YES">
