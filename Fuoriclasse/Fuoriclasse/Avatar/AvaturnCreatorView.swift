@@ -2,59 +2,83 @@ import SwiftUI
 import UIKit
 import WebKit
 
-/// WKWebView embarquant le créateur d'avatar Avaturn (free tier — embed URL).
-/// Avaturn envoie un postMessage JS quand l'avatar est exporté → bridge natif → onExported(url).
+/// WKWebView embarquant le créateur d'avatar Avaturn.
+/// Stratégie d'export multi-couches :
+///   1. postMessage "v2.avatar.exported"   → onExported() automatique
+///   2. Interception fetch/XHR pour .glb  → capturedGLBURL mis à jour
+///   3. Bouton natif "Importer"            → evaluateJavaScript sur localStorage
 struct AvaturnCreatorView: UIViewRepresentable {
-    /// URL embed du projet Avaturn (depuis Editor Settings sur developer.avaturn.me)
     let embedURL: String
+    /// URL GLB capturée automatiquement — permet d'activer le bouton "Importer"
+    @Binding var capturedGLBURL: URL?
+    /// Référence au Coordinator exposée pour l'évaluation JS manuelle
+    @Binding var coordinator: Coordinator?
     let onExported: (URL) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onExported: onExported)
+        Coordinator(capturedGLBURL: $capturedGLBURL, onExported: onExported)
     }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-
-        // Handler natif "avaturn" — reçoit les messages JS
         config.userContentController.add(context.coordinator, name: "avaturn")
 
-        // Bridge JS : intercepte window.postMessage et les events 'message'
-        // et les forward vers le handler natif.
+        // ── Bridge JS complet ──────────────────────────────────────────────
         let bridge = """
         (function() {
+            // 1. Relay postMessage → natif
             function relay(data) {
                 try {
-                    var payload = (typeof data === 'string') ? JSON.parse(data) : data;
-                    window.webkit.messageHandlers.avaturn.postMessage(payload);
+                    var p = (typeof data === 'string') ? JSON.parse(data) : data;
+                    window.webkit.messageHandlers.avaturn.postMessage(p);
                 } catch(_) {
                     window.webkit.messageHandlers.avaturn.postMessage({ raw: String(data) });
                 }
             }
             window.addEventListener('message', function(e) { relay(e.data); }, false);
-            var orig = window.postMessage.bind(window);
-            window.postMessage = function(msg, target) { relay(msg); orig(msg, target || '*'); };
+            var _pm = window.postMessage.bind(window);
+            window.postMessage = function(msg, t) { relay(msg); _pm(msg, t || '*'); };
+
+            // 2. Capture URL .glb via fetch
+            var _fetch = window.fetch.bind(window);
+            window.fetch = function(resource, opts) {
+                var url = typeof resource === 'string' ? resource
+                        : (resource && resource.url ? resource.url : '');
+                if (url && /\\.glb(\\?|$)/i.test(url)) {
+                    window.webkit.messageHandlers.avaturn.postMessage({ glbUrl: url });
+                }
+                return _fetch.apply(window, arguments);
+            };
+
+            // 3. Capture URL .glb via XHR
+            var _open = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function(method, url) {
+                if (url && /\\.glb(\\?|$)/i.test(url)) {
+                    window.webkit.messageHandlers.avaturn.postMessage({ glbUrl: url });
+                }
+                return _open.apply(this, arguments);
+            };
         })();
         """
         let script = WKUserScript(source: bridge, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
         config.userContentController.addUserScript(script)
 
-        // Autoriser la caméra dans la WebView (selfies)
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
-        webView.backgroundColor = UIColor(red: 15/255, green: 5/255, blue: 40/255, alpha: 1)
+        webView.uiDelegate         = context.coordinator
+        webView.backgroundColor    = UIColor(red: 15/255, green: 5/255, blue: 40/255, alpha: 1)
         webView.isOpaque = false
 
+        context.coordinator.webView = webView
+        DispatchQueue.main.async { self.coordinator = context.coordinator }
         loadEditor(in: webView)
         return webView
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
-
-    // MARK: - Chargement
 
     private func loadEditor(in webView: WKWebView) {
         guard !embedURL.isEmpty, let url = URL(string: embedURL) else {
@@ -75,13 +99,26 @@ struct AvaturnCreatorView: UIViewRepresentable {
 
     // MARK: - Coordinator
 
-    final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
+        @Binding var capturedGLBURL: URL?
         let onExported: (URL) -> Void
+        weak var webView: WKWebView?
 
-        init(onExported: @escaping (URL) -> Void) {
+        init(capturedGLBURL: Binding<URL?>, onExported: @escaping (URL) -> Void) {
+            _capturedGLBURL = capturedGLBURL
             self.onExported = onExported
         }
 
+        // ── Permission caméra (iOS 15+) ────────────────────────────────────
+        func webView(_ webView: WKWebView,
+                     requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+                     initiatedByFrame frame: WKFrameInfo,
+                     type: WKMediaCaptureType,
+                     decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+            decisionHandler(.grant)
+        }
+
+        // ── Réception messages JS ──────────────────────────────────────────
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
             guard message.name == "avaturn" else { return }
 
@@ -95,27 +132,69 @@ struct AvaturnCreatorView: UIViewRepresentable {
             }
             guard let dict else { return }
 
-            // Extrait une string GLB depuis un dict et déclenche le callback
             func fire(_ urlString: String) {
-                // Supporte HttpURL (http/https) et DataURL (data:...)
                 guard let url = URL(string: urlString) else { return }
-                DispatchQueue.main.async { self.onExported(url) }
+                DispatchQueue.main.async {
+                    // Met à jour capturedGLBURL pour activer le bouton "Importer"
+                    self.capturedGLBURL = url
+                }
             }
 
-            // Format officiel Avaturn : {"eventName": "v2.avatar.exported", "data": {"glbUrl": "..."}}
+            // Format officiel : {"eventName": "v2.avatar.exported", "data": {"glbUrl": "..."}}
             if let event = dict["eventName"] as? String,
                event == "v2.avatar.exported",
                let data = dict["data"] as? [String: Any],
                let glbStr = data["glbUrl"] as? String {
                 fire(glbStr)
+                // Export automatique
+                if let url = URL(string: glbStr) {
+                    DispatchQueue.main.async { self.onExported(url) }
+                }
+                return
+            }
+
+            // Capture via interception fetch/XHR
+            if let glbStr = dict["glbUrl"] as? String {
+                fire(glbStr)
                 return
             }
 
             // Formats de repli
-            for key in ["glbUrl", "url", "avatarUrl"] {
-                if let s = dict[key] as? String {
-                    fire(s)
-                    return
+            for key in ["url", "avatarUrl"] {
+                if let s = dict[key] as? String { fire(s); return }
+            }
+        }
+
+        // ── Évaluation JS manuelle (bouton "Importer") ─────────────────────
+        /// Cherche l'URL du GLB dans localStorage/sessionStorage de la page
+        func evaluateExtractURL(completion: @escaping (URL?) -> Void) {
+            guard let wv = webView else { completion(nil); return }
+            let js = """
+            (function() {
+                var stores = [localStorage, sessionStorage];
+                for (var s of stores) {
+                    for (var k of Object.keys(s)) {
+                        try {
+                            var raw = s.getItem(k);
+                            var v = JSON.parse(raw);
+                            for (var field of ['modelUrl','glbUrl','url','avatarUrl','exportUrl']) {
+                                if (v && v[field] && String(v[field]).match(/\\.glb/i)) return v[field];
+                            }
+                            if (typeof raw === 'string' && raw.match(/https?:\\/\\/.*\\.glb/i)) {
+                                var m = raw.match(/(https?:\\/\\/[^"'\\s]*\\.glb[^"'\\s]*)/i);
+                                if (m) return m[1];
+                            }
+                        } catch(e) {}
+                    }
+                }
+                return null;
+            })()
+            """
+            wv.evaluateJavaScript(js) { result, _ in
+                if let s = result as? String, let url = URL(string: s) {
+                    completion(url)
+                } else {
+                    completion(nil)
                 }
             }
         }

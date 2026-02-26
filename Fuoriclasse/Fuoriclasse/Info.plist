@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Fuoriclasse utilise la caméra pour créer ton avatar personnalisé.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Fuoriclasse accède à ta galerie pour ajouter des photos à ton dressing.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Fuoriclasse peut utiliser le micro lors de la création d'avatar.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>BRIGHTON.TTF</string>
