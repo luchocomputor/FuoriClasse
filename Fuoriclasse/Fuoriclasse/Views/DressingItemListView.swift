@@ -145,19 +145,6 @@ struct DressingItemListView: View {
             Text("Ajoute ta première pièce !")
                 .font(.system(size: 14, weight: .light))
                 .foregroundColor(.white.opacity(0.3))
-            Button { showingAddSheet = true } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus")
-                    Text("Ajouter une pièce")
-                        .font(.system(size: 15, weight: .semibold))
-                }
-                .foregroundColor(.white)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 24)
-                .background(Capsule().fill(Color(red: 120/255, green: 60/255, blue: 200/255)))
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
             Spacer()
         }
     }
@@ -174,19 +161,6 @@ struct DressingItemListView: View {
             Text("Combine tes pièces en tenues !")
                 .font(.system(size: 14, weight: .light))
                 .foregroundColor(.white.opacity(0.3))
-            Button { showingAddSheet = true } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus")
-                    Text("Créer une tenue")
-                        .font(.system(size: 15, weight: .semibold))
-                }
-                .foregroundColor(.white)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 24)
-                .background(Capsule().fill(Color(red: 120/255, green: 60/255, blue: 200/255)))
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
             Spacer()
         }
     }

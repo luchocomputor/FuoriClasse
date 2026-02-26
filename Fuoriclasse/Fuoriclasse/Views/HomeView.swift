@@ -182,6 +182,10 @@ struct FluidBackgroundView: View {
             SparkleField(count: 50, color: Color.white.opacity(0.15), maxSize: 4, speed: 8, rangeXY: 800)
             SparkleField(count: 30, color: Color.white.opacity(0.1), maxSize: 3, speed: 10, rangeXY: 800)
         }
+        // Fixe la taille rapportée au parent = taille proposée (sinon les blobs
+        // frame(width:600) inflatent le ZStack parent à 600pt et tout déborde)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
     }
 }
 

@@ -83,7 +83,7 @@ struct DressingItemEditView: View {
                     ]),
                     center: .center, startRadius: 100, endRadius: 500
                 )
-                .ignoresSafeArea()
+                .ignoresSafeArea(edges: .all)
                 FluidBackgroundView()
 
                 ScrollView {
@@ -187,6 +187,7 @@ struct DressingItemEditView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
+                .padding(.bottom, 80)
             }
 
             // ── Taille
@@ -209,7 +210,7 @@ struct DressingItemEditView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 2)
+                .padding(.horizontal, 20)
             }
 
             // ── Aspect
