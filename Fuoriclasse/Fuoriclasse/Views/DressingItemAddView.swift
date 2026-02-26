@@ -1,9 +1,25 @@
 import SwiftUI
 
+// MARK: - Mode d'ajout
+
+enum AddMode { case manual, online }
+
+// MARK: - État du fetch URL
+
+private enum FetchState: Equatable {
+    case idle, loading, success, error(String)
+}
+
+// MARK: - DressingItemAddView
+
 struct DressingItemAddView: View {
     @Binding var isPresented: Bool
     @Environment(\.managedObjectContext) private var context
 
+    // Choix du mode (nil = écran picker)
+    @State private var mode: AddMode? = nil
+
+    // Champs du formulaire
     @State private var title          = ""
     @State private var brand          = ""
     @State private var category       = "T-shirt"
@@ -19,35 +35,38 @@ struct DressingItemAddView: View {
     @State private var photoData: Data?
     @State private var isShowingPhotoPicker = false
 
-    let categories = ["T-shirt", "Sweat-shirt", "Chemise", "Pull", "Robe", "Pantalon", "Short",
-                      "Veste", "Manteau", "Chaussures", "Accessoire", "Autre"]
-    let seasons    = ["Toutes saisons", "Printemps/Été", "Automne/Hiver", "Été", "Hiver"]
-    let styles     = ["", "Casual", "Streetwear", "Sport", "Formel", "Chic", "Vintage", "Autre"]
-    let fits       = ["", "Regular", "Slim", "Oversize", "Ajusté", "Loose"]
+    // URL / fetch (mode online)
+    @State private var sourceURL  = ""
+    @State private var fetchState: FetchState = .idle
+
+    let categories    = ["T-shirt", "Sweat-shirt", "Chemise", "Pull", "Robe", "Pantalon", "Short",
+                         "Veste", "Manteau", "Chaussures", "Accessoire", "Autre"]
+    let seasons       = ["Toutes saisons", "Printemps/Été", "Automne/Hiver", "Été", "Hiver"]
+    let styles        = ["", "Casual", "Streetwear", "Sport", "Formel", "Chic", "Vintage", "Autre"]
+    let fits          = ["", "Regular", "Slim", "Oversize", "Ajusté", "Loose"]
     let clothingSizes = ["XS", "S", "M", "L", "XL", "XXL"]
-    let shoeSizes  = Array(35...48).map { "\($0)" }
-    let pantsSizes = ["34", "36", "38", "40", "42", "44", "46", "48"]
+    let shoeSizes     = Array(35...48).map { "\($0)" }
+    let pantsSizes    = ["34", "36", "38", "40", "42", "44", "46", "48"]
 
     var selectedSizes: [String] {
         switch category {
-        case "Chaussures":      return shoeSizes
-        case "Pantalon", "Short": return pantsSizes
-        default:                return clothingSizes
+        case "Chaussures":          return shoeSizes
+        case "Pantalon", "Short":   return pantsSizes
+        default:                    return clothingSizes
         }
     }
-
     var isShoe: Bool { category == "Chaussures" }
+
+    // MARK: - Body
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    photoSection
-                    fieldsSection
-                    Spacer().frame(height: 20)
+            Group {
+                if mode == nil {
+                    pickerContent
+                } else {
+                    formContent
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
             }
             .background {
                 ZStack {
@@ -67,18 +86,176 @@ struct DressingItemAddView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") { isPresented = false }
-                        .foregroundColor(.white.opacity(0.6))
+                    Button(mode == nil ? "Annuler" : "Retour") {
+                        if mode == nil {
+                            isPresented = false
+                        } else {
+                            withAnimation(.easeInOut(duration: 0.2)) { mode = nil }
+                        }
+                    }
+                    .foregroundColor(.white.opacity(0.6))
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Ajouter") { createItem() }
-                        .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255))
-                        .fontWeight(.semibold)
-                        .disabled(title.isEmpty)
+                if mode != nil {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Ajouter") { createItem() }
+                            .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255))
+                            .fontWeight(.semibold)
+                            .disabled(title.isEmpty)
+                    }
                 }
             }
             .sheet(isPresented: $isShowingPhotoPicker) {
                 PhotoPicker(photoData: $photoData)
+            }
+        }
+    }
+
+    // MARK: - Picker (écran de choix)
+
+    private var pickerContent: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            VStack(spacing: 10) {
+                Text("Comment ajouter\ncette pièce ?")
+                    .font(.custom("Futura-Bold", size: 24))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.bottom, 12)
+
+                SourcePickerCard(
+                    icon: "link",
+                    title: "En ligne",
+                    subtitle: "Colle un lien produit — on récupère tout automatiquement",
+                    accentColor: Color(red: 140/255, green: 80/255, blue: 220/255)
+                ) {
+                    withAnimation(.easeInOut(duration: 0.2)) { mode = .online }
+                }
+
+                SourcePickerCard(
+                    icon: "camera.fill",
+                    title: "Depuis mes affaires",
+                    subtitle: "Photo + saisie manuelle — pour le vintage, le fait main, les cadeaux…",
+                    accentColor: Color(red: 60/255, green: 130/255, blue: 220/255)
+                ) {
+                    withAnimation(.easeInOut(duration: 0.2)) { mode = .manual }
+                }
+            }
+            .padding(.horizontal, 24)
+            Spacer()
+            Spacer()
+        }
+    }
+
+    // MARK: - Formulaire
+
+    private var formContent: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                if mode == .online {
+                    urlSection
+                }
+                photoSection
+                fieldsSection
+                Spacer().frame(height: 20)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+        }
+    }
+
+    // MARK: - Section URL
+
+    private var urlSection: some View {
+        VStack(spacing: 8) {
+            sectionHeader("SOURCE EN LIGNE")
+            GlassInputCard {
+                VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color(red: 140/255, green: 80/255, blue: 220/255).opacity(0.2))
+                                .frame(width: 34, height: 34)
+                            Image(systemName: "link")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255))
+                        }
+                        TextField("https://zara.com/...", text: $sourceURL)
+                            .font(.system(size: 14))
+                            .foregroundColor(.white)
+                            .tint(Color(red: 180/255, green: 120/255, blue: 255/255))
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.URL)
+                            .frame(maxWidth: .infinity)
+
+                        // Bouton importer / état
+                        Group {
+                            switch fetchState {
+                            case .idle:
+                                Button { Task { await fetchProduct() } } label: {
+                                    Text("Importer")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(sourceURL.isEmpty
+                                                         ? .white.opacity(0.25)
+                                                         : Color(red: 180/255, green: 120/255, blue: 255/255))
+                                }
+                                .disabled(sourceURL.isEmpty)
+                            case .loading:
+                                ProgressView()
+                                    .tint(.white)
+                                    .scaleEffect(0.8)
+                            case .success:
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                    .font(.system(size: 18))
+                            case .error:
+                                Button { Task { await fetchProduct() } } label: {
+                                    Image(systemName: "arrow.clockwise")
+                                        .foregroundColor(.orange)
+                                        .font(.system(size: 16))
+                                }
+                            }
+                        }
+                        .frame(width: 64, alignment: .trailing)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+
+                    // Message d'état
+                    if case .error(let msg) = fetchState {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.07))
+                            .frame(height: 1)
+                            .padding(.leading, 52)
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(.orange)
+                            Text(msg)
+                                .font(.system(size: 12, weight: .light))
+                                .foregroundColor(.orange.opacity(0.9))
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                    }
+
+                    if case .success = fetchState {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.07))
+                            .frame(height: 1)
+                            .padding(.leading, 52)
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(.green)
+                            Text("Informations importées — vérifie et complète si besoin")
+                                .font(.system(size: 12, weight: .light))
+                                .foregroundColor(.green.opacity(0.9))
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                    }
+                }
             }
         }
     }
@@ -125,7 +302,6 @@ struct DressingItemAddView: View {
 
     private var fieldsSection: some View {
         VStack(spacing: 12) {
-            // ── Identité
             sectionHeader("IDENTITÉ")
             GlassInputCard {
                 AddFieldRow(icon: "tag.fill", placeholder: "Nom du vêtement *", text: $title)
@@ -133,7 +309,6 @@ struct DressingItemAddView: View {
                 AddFieldRow(icon: "building.2.fill", placeholder: "Marque", text: $brand)
             }
 
-            // ── Catégorie
             sectionHeader("CATÉGORIE")
             GlassInputCard {
                 HStack(spacing: 14) {
@@ -157,7 +332,6 @@ struct DressingItemAddView: View {
                 .padding(.vertical, 10)
             }
 
-            // ── Taille
             sectionHeader("TAILLE")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -175,9 +349,7 @@ struct DressingItemAddView: View {
                                 )
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .stroke(size == s
-                                                ? Color.clear
-                                                : Color.white.opacity(0.12), lineWidth: 1)
+                                        .stroke(size == s ? Color.clear : Color.white.opacity(0.12), lineWidth: 1)
                                 )
                         }
                         .buttonStyle(.plain)
@@ -186,7 +358,6 @@ struct DressingItemAddView: View {
                 .padding(.horizontal, 2)
             }
 
-            // ── Aspect
             sectionHeader("ASPECT")
             GlassInputCard {
                 AddFieldRow(icon: "paintpalette.fill", placeholder: "Couleur", text: $color)
@@ -198,7 +369,6 @@ struct DressingItemAddView: View {
                 }
             }
 
-            // ── Style & Saison
             sectionHeader("STYLE & SAISON")
             GlassInputCard {
                 AddPickerRow(icon: "tag.fill", label: "Style", selection: $style, options: styles)
@@ -206,7 +376,6 @@ struct DressingItemAddView: View {
                 AddPickerRow(icon: "calendar", label: "Saison", selection: $season, options: seasons)
             }
 
-            // ── État & Prix
             sectionHeader("ÉTAT & PRIX")
             GlassInputCard {
                 etatPicker
@@ -214,7 +383,6 @@ struct DressingItemAddView: View {
                 AddFieldRow(icon: "eurosign.circle.fill", placeholder: "Prix payé (€)", text: $price)
             }
 
-            // ── Notes
             sectionHeader("NOTES")
             GlassInputCard {
                 AddMultilineRow(icon: "note.text", placeholder: "Informations complémentaires", text: $additionalInfo)
@@ -265,6 +433,38 @@ struct DressingItemAddView: View {
         .padding(.vertical, 12)
     }
 
+    // MARK: - Fetch & prefill
+
+    @MainActor
+    private func fetchProduct() async {
+        guard !sourceURL.isEmpty else { return }
+        fetchState = .loading
+        do {
+            let info = try await ProductFetchService.shared.fetch(urlString: sourceURL)
+            prefill(from: info)
+
+            // Télécharger l'image en arrière-plan
+            if let imgURL = info.imageURL {
+                Task {
+                    if let data = await ProductFetchService.shared.downloadImage(from: imgURL) {
+                        photoData = data
+                    }
+                }
+            }
+            fetchState = .success
+        } catch {
+            fetchState = .error(error.localizedDescription)
+        }
+    }
+
+    private func prefill(from info: ProductInfo) {
+        if !info.title.isEmpty    { title    = info.title }
+        if !info.brand.isEmpty    { brand    = info.brand }
+        if !info.color.isEmpty    { color    = info.color }
+        if !info.material.isEmpty { material = info.material }
+        if !info.price.isEmpty    { price    = info.price }
+    }
+
     // MARK: - Helpers
 
     private func sectionHeader(_ text: String) -> some View {
@@ -296,22 +496,69 @@ struct DressingItemAddView: View {
 
     private func createItem() {
         let newItem = DressingItem(context: context)
-        newItem.id            = UUID()
-        newItem.title         = title
-        newItem.category      = category
-        newItem.size          = size
-        newItem.color         = color
-        newItem.brand         = brand
-        newItem.material      = material.isEmpty ? nil : material
-        newItem.fit           = fit.isEmpty ? nil : fit
-        newItem.season        = season
-        newItem.style         = style.isEmpty ? nil : style
-        newItem.price         = price.isEmpty ? nil : price
-        newItem.image         = photoData
-        newItem.dotClass      = dotClass.rawValue
+        newItem.id             = UUID()
+        newItem.title          = title
+        newItem.category       = category
+        newItem.size           = size
+        newItem.color          = color
+        newItem.brand          = brand
+        newItem.material       = material.isEmpty ? nil : material
+        newItem.fit            = fit.isEmpty ? nil : fit
+        newItem.season         = season
+        newItem.style          = style.isEmpty ? nil : style
+        newItem.price          = price.isEmpty ? nil : price
+        newItem.image          = photoData
+        newItem.dotClass       = dotClass.rawValue
         newItem.additionalInfo = additionalInfo
         CoreDataController.shared.save()
         isPresented = false
+    }
+}
+
+// MARK: - SourcePickerCard
+
+private struct SourcePickerCard: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let accentColor: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(accentColor.opacity(0.18))
+                        .frame(width: 52, height: 52)
+                    Image(systemName: icon)
+                        .font(.system(size: 22))
+                        .foregroundColor(accentColor)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                    Text(subtitle)
+                        .font(.system(size: 12, weight: .light))
+                        .foregroundColor(.white.opacity(0.5))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.25))
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(Color.white.opacity(0.07))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(accentColor.opacity(0.2), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -429,7 +676,7 @@ struct AddMultilineRow: View {
     }
 }
 
-// MARK: - Composants legacy (conservés pour SegmentedSizePicker usage interne)
+// MARK: - Composants legacy
 
 struct SegmentedSizePicker: View {
     @Binding var selectedSize: String

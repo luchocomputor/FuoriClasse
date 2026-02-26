@@ -105,4 +105,41 @@ final class GeminiService {
 
         return text
     }
+
+    // MARK: - One-shot generation (sans contexte chat)
+
+    func generate(prompt: String) async throws -> String {
+        guard let url = URL(string: "\(endpoint)?key=\(apiKey)") else {
+            throw URLError(.badURL)
+        }
+
+        let body: [String: Any] = [
+            "contents": [
+                ["role": "user", "parts": [["text": prompt]]]
+            ],
+            "generationConfig": [
+                "temperature": 0.1,
+                "maxOutputTokens": 256
+            ]
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let candidates = json["candidates"] as? [[String: Any]],
+              let content = candidates.first?["content"] as? [String: Any],
+              let parts = content["parts"] as? [[String: Any]],
+              let text = parts.first?["text"] as? String
+        else { throw URLError(.cannotParseResponse) }
+
+        return text
+    }
 }
