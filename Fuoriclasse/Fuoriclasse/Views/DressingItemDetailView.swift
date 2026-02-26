@@ -3,10 +3,16 @@ import SwiftUI
 struct DressingItemDetailView: View {
     var item: DressingItem
     @Environment(\.dismiss) private var dismiss
-    @State private var showingEdit = false
+    @State private var showingEdit     = false
     @State private var showDeleteAlert = false
     @State private var wearCount: Int32 = 0
-    @State private var lastWorn: Date? = nil
+    @State private var lastWorn: Date?  = nil
+
+    // 3D mesh
+    @State private var meshURL:       URL?    = nil   // URL locale du .glb
+    @State private var isGenerating:  Bool   = false
+    @State private var meshError:     String? = nil
+    @State private var showPhoto:     Bool   = false  // toggle 3D ↔ photo
 
     var body: some View {
         ScrollView {
@@ -31,7 +37,11 @@ struct DressingItemDetailView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .onAppear { wearCount = item.wearCount; lastWorn = item.lastWorn }
+        .onAppear {
+            wearCount = item.wearCount
+            lastWorn  = item.lastWorn
+            meshURL = Mesh3DService.shared.localMeshURL(for: item.id)
+        }
         .sheet(isPresented: $showingEdit) {
             DressingItemEditView(isPresented: $showingEdit, item: item)
         }
@@ -134,46 +144,172 @@ struct DressingItemDetailView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
-    // MARK: - Image header
+    // MARK: - Image / 3D header
 
     private var imageHeader: some View {
         ZStack(alignment: .bottom) {
+            // ── Contenu principal (3D ou photo)
             Group {
-                if let data = item.image, let img = UIImage(data: data) {
-                    Image(uiImage: img)
-                        .resizable()
-                        .scaledToFill()
+                if let url = meshURL, !showPhoto {
+                    // Viewer 3D
+                    Model3DView(fileURL: url)
                         .frame(maxWidth: .infinity)
                         .frame(height: 360)
-                        .clipped()
-                } else {
-                    ZStack {
-                        LinearGradient(
-                            colors: [Color(red: 60/255, green: 20/255, blue: 120/255),
-                                     Color(red: 25/255, green: 8/255, blue: 60/255)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
-                        VStack(spacing: 12) {
-                            Image(systemName: categoryIcon)
-                                .font(.system(size: 56))
-                                .foregroundColor(.white.opacity(0.18))
-                            Text(item.category.isEmpty ? "Vêtement" : item.category)
-                                .font(.system(size: 14, weight: .light))
-                                .foregroundColor(.white.opacity(0.3))
+                        .overlay(alignment: .topTrailing) {
+                            // Toggle → voir la photo
+                            Button { showPhoto = true } label: {
+                                Image(systemName: "photo.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .padding(10)
+                                    .background(Circle().fill(Color.black.opacity(0.45)))
+                            }
+                            .padding(16)
                         }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 360)
+                        .overlay(alignment: .bottom) {
+                            Text("Glisser pour tourner")
+                                .font(.system(size: 11, weight: .light))
+                                .foregroundColor(.white.opacity(0.35))
+                                .padding(.bottom, 48)
+                        }
+                } else {
+                    // Photo ou placeholder
+                    photoView
+                        .overlay(alignment: .topTrailing) {
+                            // Toggle → voir le 3D (si mesh dispo)
+                            if meshURL != nil {
+                                Button { showPhoto = false } label: {
+                                    Image(systemName: "cube.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.8))
+                                        .padding(10)
+                                        .background(Circle().fill(Color.black.opacity(0.45)))
+                                }
+                                .padding(16)
+                            }
+                        }
                 }
             }
 
-            // Gradient overlay bas de l'image
+            // ── Gradient bas
             LinearGradient(
                 colors: [.clear, Color(red: 15/255, green: 5/255, blue: 40/255).opacity(0.85)],
                 startPoint: .center, endPoint: .bottom
             )
             .frame(height: 160)
+            .allowsHitTesting(false)
+
+            // ── CTA génération (masqué quand 3D déjà affiché)
+            if meshURL == nil || showPhoto {
+                meshGenerateOverlay
+                    .padding(.bottom, 16)
+            }
         }
+    }
+
+    // Photo ou placeholder catégorie
+    private var photoView: some View {
+        Group {
+            if let data = item.image, let img = UIImage(data: data) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 360)
+                    .clipped()
+            } else {
+                ZStack {
+                    LinearGradient(
+                        colors: [Color(red: 60/255, green: 20/255, blue: 120/255),
+                                 Color(red: 25/255, green: 8/255, blue: 60/255)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                    VStack(spacing: 12) {
+                        Image(systemName: categoryIcon)
+                            .font(.system(size: 56))
+                            .foregroundColor(.white.opacity(0.18))
+                        Text(item.category.isEmpty ? "Vêtement" : item.category)
+                            .font(.system(size: 14, weight: .light))
+                            .foregroundColor(.white.opacity(0.3))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 360)
+            }
+        }
+    }
+
+    // Overlay bas du header : génération / chargement / erreur
+    @ViewBuilder
+    private var meshGenerateOverlay: some View {
+        if isGenerating {
+            HStack(spacing: 10) {
+                ProgressView()
+                    .tint(.white)
+                    .scaleEffect(0.85)
+                Text("Génération 3D en cours…")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 10)
+            .background(Capsule().fill(Color.black.opacity(0.55)))
+
+        } else if let err = meshError {
+            VStack(spacing: 6) {
+                Text(err)
+                    .font(.system(size: 11, weight: .light))
+                    .foregroundColor(.orange.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+                Button { Task { await generateMesh() } } label: {
+                    Text("Réessayer")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .background(Capsule().fill(Color.orange.opacity(0.6)))
+                }
+            }
+        } else if item.image != nil {
+            Button { Task { await generateMesh() } } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "cube.transparent")
+                        .font(.system(size: 15))
+                    Text("Générer en 3D")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule()
+                        .fill(Color(red: 100/255, green: 50/255, blue: 180/255).opacity(0.75))
+                        .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Génération 3D
+
+    @MainActor
+    private func generateMesh() async {
+        guard let imageData = item.image else {
+            meshError = "Ajoute d'abord une photo à cette pièce"
+            return
+        }
+        isGenerating = true
+        meshError    = nil
+        showPhoto    = false
+        do {
+            let url  = try await Mesh3DService.shared.generate(imageData: imageData, itemID: item.id)
+            meshURL  = url
+        } catch {
+            meshError = error.localizedDescription
+        }
+        isGenerating = false
     }
 
     // MARK: - Contenu
