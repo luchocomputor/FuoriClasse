@@ -23,6 +23,11 @@ struct MainTabView: View {
             .tabItem {
                 Label("Profil", systemImage: "person.crop.circle")
             }
+
+            SocialFeedView()
+            .tabItem {
+                Label("Social", systemImage: "person.2.fill")
+            }
         }
         .tint(.pink)
     }

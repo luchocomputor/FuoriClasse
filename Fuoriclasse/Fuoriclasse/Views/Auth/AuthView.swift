@@ -4,8 +4,40 @@ struct AuthView: View {
     @State private var selectedTab = 0
 
     var body: some View {
-        ZStack {
-            // Fond identique au reste de l'app
+        VStack(spacing: 0) {
+            // En-tête
+            VStack(spacing: 8) {
+                Text("Fuoriclasse")
+                    .font(.custom("Futura-Bold", size: 34))
+                    .foregroundColor(.white)
+
+                Text("VOTRE STYLISTE PERSONNEL")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.4))
+                    .tracking(2.5)
+            }
+            .padding(.top, 60)
+            .padding(.bottom, 36)
+
+            // Sélecteur Connexion / Inscription
+            segmentedPicker
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+
+            // Contenu de l'onglet
+            TabView(selection: $selectedTab) {
+                LoginView()
+                    .tag(0)
+                SignUpView()
+                    .tag(1)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .animation(.easeInOut(duration: 0.25), value: selectedTab)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
             ZStack {
                 RadialGradient(
                     gradient: Gradient(colors: [
@@ -17,39 +49,6 @@ struct AuthView: View {
                 FluidBackgroundView()
             }
             .ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // En-tête
-                VStack(spacing: 8) {
-                    Text("Fuoriclasse")
-                        .font(.custom("Futura-Bold", size: 34))
-                        .foregroundColor(.white)
-
-                    Text("VOTRE STYLISTE PERSONNEL")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white.opacity(0.4))
-                        .tracking(2.5)
-                }
-                .padding(.top, 60)
-                .padding(.bottom, 36)
-
-                // Sélecteur Connexion / Inscription
-                segmentedPicker
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
-
-                // Contenu de l'onglet
-                TabView(selection: $selectedTab) {
-                    LoginView()
-                        .tag(0)
-                    SignUpView()
-                        .tag(1)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut(duration: 0.25), value: selectedTab)
-
-                Spacer()
-            }
         }
     }
 
