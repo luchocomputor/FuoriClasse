@@ -20,6 +20,9 @@ struct ProfileView: View {
     @State private var bio              = ""
 
     @State private var followStats: (followers: Int, following: Int) = (0, 0)
+    @State private var selectedTab          = 0
+    @State private var userPosts: [FeedPost] = []
+    @State private var isLoadingPosts       = false
 
     @State private var profileImageData: Data? = UserDefaults.standard.data(forKey: "profile_photo")
     @State private var showPhotoPicker      = false
@@ -38,13 +41,15 @@ struct ProfileView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 0) {
                 heroSection
-                wardrobePreview
-                avatarSection
-                Spacer().frame(height: 20)
+                    .padding(.top, 16)
+                    .padding(.bottom, 20)
+
+                profileTabBar
+
+                tabContent
             }
-            .padding(.top, 16)
         }
         .background {
             ZStack {
@@ -113,10 +118,11 @@ struct ProfileView: View {
         username = profile.username ?? ""
         location = profile.location ?? ""
         bio      = profile.bio      ?? ""
-        if let userId = auth.session?.user.id,
-           let stats = try? await SocialService.shared.fetchFollowStats(userId: userId) {
-            followStats = stats
-        }
+        guard let userId = auth.session?.user.id else { return }
+        async let statsTask = SocialService.shared.fetchFollowStats(userId: userId)
+        async let postsTask = SocialService.shared.fetchUserPosts(userId: userId, currentUserId: userId)
+        if let stats = try? await statsTask { followStats = stats }
+        if let posts = try? await postsTask { userPosts = posts }
     }
 
     // MARK: - Hero (Instagram-style)
@@ -263,57 +269,170 @@ struct ProfileView: View {
             .frame(width: 1, height: 26)
     }
 
-    // MARK: - Aperçu dressing
+    // MARK: - Tab bar (Instagram-style)
 
-    private var wardrobePreview: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(LinearGradient(
-                        colors: [
-                            Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.85),
-                            Color(red: 140/255, green: 80/255, blue: 220/255).opacity(0.35)
-                        ],
-                        startPoint: .top, endPoint: .bottom
-                    ))
-                    .frame(width: 2, height: 14)
-                Text("Mon dressing")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.65))
-                    .tracking(0.3)
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-
-            if dressingItems.isEmpty {
-                GlassCard {
-                    VStack(spacing: 10) {
-                        Image(systemName: "hanger")
-                            .font(.system(size: 30))
-                            .foregroundColor(.white.opacity(0.18))
-                        Text("Ton dressing est vide")
-                            .font(.system(size: 14, weight: .light))
-                            .foregroundColor(.white.opacity(0.32))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 28)
-                }
-                .padding(.horizontal, 20)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(Array(dressingItems.prefix(8)), id: \.id) { item in
-                            NavigationLink(destination: DressingItemDetailView(item: item)) {
-                                WardrobePreviewCard(item: item)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 4)
-                }
+    private var profileTabBar: some View {
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(Color.white.opacity(0.1))
+                .frame(height: 1)
+            HStack(spacing: 0) {
+                tabBarButton(icon: "square.grid.3x3", tag: 0)
+                tabBarButton(icon: "sparkles",        tag: 1)
+                tabBarButton(icon: "photo.stack",     tag: 2)
             }
         }
+    }
+
+    private func tabBarButton(icon: String, tag: Int) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) { selectedTab = tag }
+        } label: {
+            VStack(spacing: 0) {
+                Image(systemName: icon)
+                    .font(.system(size: 19))
+                    .foregroundColor(selectedTab == tag ? .white : .white.opacity(0.3))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                Rectangle()
+                    .fill(selectedTab == tag ? Color.white : Color.clear)
+                    .frame(height: 1.5)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Tab content
+
+    @ViewBuilder
+    private var tabContent: some View {
+        switch selectedTab {
+        case 0: dressingGrid
+        case 1: avatarSection.padding(.top, 20)
+        case 2: feedGrid
+        default: EmptyView()
+        }
+    }
+
+    // MARK: - Dressing grid (3 colonnes)
+
+    private var dressingGrid: some View {
+        Group {
+            if dressingItems.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "hanger")
+                        .font(.system(size: 40))
+                        .foregroundColor(.white.opacity(0.15))
+                    Text("Your wardrobe is empty")
+                        .font(.system(size: 14, weight: .light))
+                        .foregroundColor(.white.opacity(0.3))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 60)
+            } else {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3),
+                    spacing: 2
+                ) {
+                    ForEach(dressingItems) { item in
+                        NavigationLink(destination: DressingItemDetailView(item: item)) {
+                            dressingCell(item: item)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 2)
+            }
+        }
+    }
+
+    private func dressingCell(item: DressingItem) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .bottomLeading) {
+                if let data = item.image, let img = UIImage(data: data) {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    LinearGradient(
+                        colors: [Color(red: 70/255, green: 30/255, blue: 140/255),
+                                 Color(red: 40/255, green: 10/255, blue: 80/255)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                    Image(systemName: "hanger")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white.opacity(0.2))
+                }
+                LinearGradient(colors: [.clear, .black.opacity(0.4)], startPoint: .center, endPoint: .bottom)
+                Text(item.category)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(.white.opacity(0.8))
+                    .padding(.horizontal, 5).padding(.vertical, 3)
+                    .background(Color.black.opacity(0.35))
+                    .clipShape(Capsule())
+                    .padding(5)
+            }
+            .frame(width: geo.size.width, height: geo.size.width)
+            .clipped()
+        }
+        .aspectRatio(1, contentMode: .fit)
+    }
+
+    // MARK: - Feed grid (posts, 3 colonnes)
+
+    private var feedGrid: some View {
+        Group {
+            if userPosts.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "camera")
+                        .font(.system(size: 40))
+                        .foregroundColor(.white.opacity(0.15))
+                    Text("No posts yet")
+                        .font(.system(size: 14, weight: .light))
+                        .foregroundColor(.white.opacity(0.3))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 60)
+            } else {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3),
+                    spacing: 2
+                ) {
+                    ForEach(userPosts) { feedPost in
+                        postCell(feedPost: feedPost)
+                    }
+                }
+                .padding(.top, 2)
+            }
+        }
+    }
+
+    private func postCell(feedPost: FeedPost) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .bottomLeading) {
+                if let url = feedPost.post.imageUrls.first {
+                    AsyncImage(url: URL(string: url)) { phase in
+                        switch phase {
+                        case .success(let img): img.resizable().scaledToFill()
+                        default: Rectangle().fill(Color.white.opacity(0.07))
+                        }
+                    }
+                } else {
+                    Rectangle().fill(Color.white.opacity(0.07))
+                        .overlay(Image(systemName: "hanger").foregroundColor(.white.opacity(0.2)))
+                }
+                LinearGradient(colors: [.clear, .black.opacity(0.45)], startPoint: .center, endPoint: .bottom)
+                HStack(spacing: 3) {
+                    Image(systemName: "heart.fill").font(.system(size: 9))
+                    Text("\(feedPost.likesCount)").font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundColor(.white.opacity(0.85))
+                .padding(5)
+            }
+            .frame(width: geo.size.width, height: geo.size.width)
+            .clipped()
+        }
+        .aspectRatio(1, contentMode: .fit)
     }
 
     // MARK: - Avatar 3D
