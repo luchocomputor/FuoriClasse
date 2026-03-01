@@ -129,19 +129,23 @@ struct ProfileView: View {
 
     private var heroSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Pseudo au-dessus
-            Text(username.isEmpty ? "Ajouter un pseudo" : username)
-                .font(.custom("Futura-Bold", size: 16))
-                .foregroundColor(username.isEmpty ? .white.opacity(0.3) : .white)
-                .padding(.horizontal, 16)
+            // Pseudo + stats (pleine largeur)
+            VStack(alignment: .leading, spacing: 10) {
+                Text(username.isEmpty ? "Ajouter un pseudo" : username)
+                    .font(.custom("Futura-Bold", size: 16))
+                    .foregroundColor(username.isEmpty ? .white.opacity(0.3) : .white)
+                    .padding(.horizontal, 16)
 
-            // Ligne photo + stats
-            HStack(alignment: .center, spacing: 0) {
-                profilePhoto
-                Spacer(minLength: 16)
                 statsRow
+                    .padding(.horizontal, 16)
             }
-            .padding(.horizontal, 16)
+
+            // Photo centrée en dessous des stats
+            HStack {
+                Spacer()
+                profilePhoto
+                Spacer()
+            }
 
             // Bio + localisation
             VStack(alignment: .leading, spacing: 4) {
@@ -201,7 +205,7 @@ struct ProfileView: View {
                     }
                 }
             }
-            .frame(width: 70, height: 70)
+            .frame(width: 86, height: 86)
             .clipShape(Circle())
             .overlay(
                 Circle().stroke(
@@ -217,8 +221,8 @@ struct ProfileView: View {
 
             Button { showPhotoPicker = true } label: {
                 ZStack {
-                    Circle().fill(Color(red: 140/255, green: 80/255, blue: 220/255)).frame(width: 22, height: 22)
-                    Image(systemName: "camera.fill").font(.system(size: 9)).foregroundColor(.white)
+                    Circle().fill(Color(red: 140/255, green: 80/255, blue: 220/255)).frame(width: 26, height: 26)
+                    Image(systemName: "camera.fill").font(.system(size: 10)).foregroundColor(.white)
                 }
             }
             .offset(x: 2, y: 2)
@@ -283,6 +287,7 @@ struct ProfileView: View {
                 tabBarButton(icon: "square.grid.3x3", tag: 0)
                 tabBarButton(icon: "tshirt",           tag: 1)
                 tabBarButton(icon: "photo.stack",      tag: 2)
+                tabBarButton(icon: "sparkles",         tag: 3)
             }
         }
     }
@@ -313,6 +318,7 @@ struct ProfileView: View {
         case 0: dressingGrid
         case 1: outfitsGrid
         case 2: feedGrid
+        case 3: avatarSection.padding(.top, 20).padding(.horizontal, 0)
         default: EmptyView()
         }
     }
