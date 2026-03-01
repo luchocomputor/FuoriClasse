@@ -28,6 +28,14 @@
 				<string>com.googleusercontent.apps.478569030141-6ub8r4ta4sloebt4kkhseg9pf6mtk73d</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>fuoriclasse-auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fuoriclasse</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

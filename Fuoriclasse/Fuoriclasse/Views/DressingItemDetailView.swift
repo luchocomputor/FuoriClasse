@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct DressingItemDetailView: View {
     var item: DressingItem
@@ -13,6 +14,13 @@ struct DressingItemDetailView: View {
     @State private var isGenerating:  Bool   = false
     @State private var meshError:     String? = nil
     @State private var showPhoto:     Bool   = false  // toggle 3D ↔ photo
+
+    // Try-on virtuel
+    @State private var isGeneratingTryOn = false
+    @State private var tryOnError: String? = nil
+    @State private var tryOnImage: UIImage? = nil
+    @State private var showTryOnResult  = false
+    @State private var showNoPhotoAlert = false
 
     var body: some View {
         ScrollView {
@@ -44,6 +52,16 @@ struct DressingItemDetailView: View {
         }
         .sheet(isPresented: $showingEdit) {
             DressingItemEditView(isPresented: $showingEdit, item: item)
+        }
+        .sheet(isPresented: $showTryOnResult) {
+            if let img = tryOnImage {
+                TryOnResultSheet(image: img, itemTitle: item.title)
+            }
+        }
+        .alert("Photo de profil manquante", isPresented: $showNoPhotoAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Ajoute une photo de profil dans ton profil pour utiliser l'essayage virtuel.")
         }
         .alert("Supprimer ?", isPresented: $showDeleteAlert) {
             Button("Supprimer", role: .destructive) { deleteItem() }
@@ -255,6 +273,19 @@ struct DressingItemDetailView: View {
             .padding(.vertical, 10)
             .background(Capsule().fill(Color.black.opacity(0.55)))
 
+        } else if isGeneratingTryOn {
+            HStack(spacing: 10) {
+                ProgressView()
+                    .tint(.white)
+                    .scaleEffect(0.85)
+                Text("Essai en cours…")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 10)
+            .background(Capsule().fill(Color.black.opacity(0.55)))
+
         } else if let err = meshError {
             VStack(spacing: 6) {
                 Text(err)
@@ -271,24 +302,62 @@ struct DressingItemDetailView: View {
                         .background(Capsule().fill(Color.orange.opacity(0.6)))
                 }
             }
-        } else if item.image != nil {
-            Button { Task { await generateMesh() } } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "cube.transparent")
-                        .font(.system(size: 15))
-                    Text("Générer en 3D")
-                        .font(.system(size: 14, weight: .semibold))
+
+        } else if let err = tryOnError {
+            VStack(spacing: 6) {
+                Text(err)
+                    .font(.system(size: 11, weight: .light))
+                    .foregroundColor(.orange.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+                Button { Task { await generateTryOn() } } label: {
+                    Text("Réessayer")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .background(Capsule().fill(Color.orange.opacity(0.6)))
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(
-                    Capsule()
-                        .fill(Color(red: 100/255, green: 50/255, blue: 180/255).opacity(0.75))
-                        .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1))
-                )
             }
-            .buttonStyle(.plain)
+
+        } else if item.image != nil {
+            HStack(spacing: 10) {
+                Button { Task { await generateMesh() } } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "cube.transparent")
+                            .font(.system(size: 13))
+                        Text("Générer en 3D")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                    .background(
+                        Capsule()
+                            .fill(Color(red: 100/255, green: 50/255, blue: 180/255).opacity(0.75))
+                            .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button { Task { await generateTryOn() } } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.fill.viewfinder")
+                            .font(.system(size: 13))
+                        Text("Essayer")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                    .background(
+                        Capsule()
+                            .fill(Color(red: 60/255, green: 160/255, blue: 220/255).opacity(0.75))
+                            .overlay(Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
@@ -310,6 +379,32 @@ struct DressingItemDetailView: View {
             meshError = error.localizedDescription
         }
         isGenerating = false
+    }
+
+    // MARK: - Essayage virtuel
+
+    @MainActor
+    private func generateTryOn() async {
+        guard let garmentData = item.image else { return }
+        guard let personData = UserDefaults.standard.data(forKey: "profile_photo") else {
+            showNoPhotoAlert = true
+            return
+        }
+        isGeneratingTryOn = true
+        tryOnError = nil
+        do {
+            let img = try await TryOnService.shared.generate(
+                personImage: personData,
+                garmentImage: garmentData,
+                category: item.category,
+                itemTitle: item.title
+            )
+            tryOnImage = img
+            showTryOnResult = true
+        } catch {
+            tryOnError = error.localizedDescription
+        }
+        isGeneratingTryOn = false
     }
 
     // MARK: - Contenu
@@ -668,6 +763,54 @@ struct StyleChip: View {
         .background(color.opacity(0.15))
         .clipShape(Capsule())
         .overlay(Capsule().stroke(color.opacity(0.3), lineWidth: 1))
+    }
+}
+
+// MARK: - TryOnResultSheet
+
+struct TryOnResultSheet: View {
+    let image: UIImage
+    let itemTitle: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .padding(16)
+            }
+            .background {
+                ZStack {
+                    RadialGradient(
+                        colors: [Color(red: 40/255, green: 10/255, blue: 90/255),
+                                 Color(red: 15/255, green: 5/255, blue: 40/255)],
+                        center: .center, startRadius: 100, endRadius: 500
+                    )
+                    FluidBackgroundView()
+                }
+                .ignoresSafeArea()
+            }
+            .navigationTitle("Essayage")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fermer") { dismiss() }
+                        .foregroundColor(.white.opacity(0.65))
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    } label: {
+                        Image(systemName: "square.and.arrow.down")
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
     }
 }
 

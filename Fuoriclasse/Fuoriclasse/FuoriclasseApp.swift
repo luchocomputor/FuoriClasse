@@ -16,6 +16,11 @@ struct FuoriclasseApp: App {
             SplashView()
                 .environment(\.managedObjectContext, CoreDataController.shared.context)
                 .environmentObject(auth)
+                .onOpenURL { url in
+                    Task {
+                        try? await SupabaseService.shared.client.auth.session(from: url)
+                    }
+                }
         }
     }
 }

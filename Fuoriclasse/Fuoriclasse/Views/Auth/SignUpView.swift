@@ -26,24 +26,61 @@ struct SignUpView: View {
     }
 
     var body: some View {
+        Group {
+            if confirmationMessage != nil {
+                confirmationScreen
+            } else {
+                formScreen
+            }
+        }
+        .animation(.easeInOut(duration: 0.35), value: confirmationMessage != nil)
+    }
+
+    // MARK: - Écran confirmation
+
+    private var confirmationScreen: some View {
+        VStack(spacing: 28) {
+            Spacer()
+
+            Image(systemName: "envelope.badge.checkmark.fill")
+                .font(.system(size: 64))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color(red: 100/255, green: 200/255, blue: 140/255),
+                                 Color(red: 60/255, green: 160/255, blue: 100/255)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+
+            VStack(spacing: 10) {
+                Text("Vérifie ta boîte mail")
+                    .font(.custom("Futura-Bold", size: 22))
+                    .foregroundColor(.white)
+
+                Text("Un lien de confirmation a été envoyé à\n**\(email)**\n\nClique dessus pour activer ton compte.")
+                    .font(.system(size: 14, weight: .light))
+                    .foregroundColor(.white.opacity(0.65))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+            }
+            .padding(.horizontal, 32)
+
+            Text("Pense à vérifier tes spams si tu ne vois rien.")
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.35))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Formulaire
+
+    private var formScreen: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Confirmation email envoyé
-                if let msg = confirmationMessage {
-                    HStack(spacing: 10) {
-                        Image(systemName: "envelope.badge.checkmark")
-                            .foregroundColor(Color(red: 100/255, green: 200/255, blue: 130/255))
-                        Text(msg)
-                            .font(.system(size: 14))
-                            .foregroundColor(.white.opacity(0.85))
-                    }
-                    .padding(14)
-                    .background(Color.white.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
-
-                // Champs
                 authField(placeholder: "Nom d'utilisateur", text: $username, icon: "person", isSecure: false, field: .username)
                 authField(placeholder: "Adresse e-mail", text: $email, icon: "envelope", isSecure: false, field: .email)
 
@@ -69,7 +106,6 @@ struct SignUpView: View {
                     }
                 }
 
-                // Bouton créer le compte
                 Button(action: signUp) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -100,7 +136,6 @@ struct SignUpView: View {
             .padding(.bottom, 40)
             .animation(.spring(response: 0.3), value: passwordTooShort)
             .animation(.spring(response: 0.3), value: passwordMismatch)
-            .animation(.spring(response: 0.4), value: confirmationMessage != nil)
         }
         .scrollDismissesKeyboard(.interactively)
         .overlay(alignment: .top) {
