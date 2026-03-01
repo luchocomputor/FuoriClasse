@@ -281,8 +281,8 @@ struct ProfileView: View {
                 .frame(height: 1)
             HStack(spacing: 0) {
                 tabBarButton(icon: "square.grid.3x3", tag: 0)
-                tabBarButton(icon: "sparkles",        tag: 1)
-                tabBarButton(icon: "photo.stack",     tag: 2)
+                tabBarButton(icon: "tshirt",           tag: 1)
+                tabBarButton(icon: "photo.stack",      tag: 2)
             }
         }
     }
@@ -311,7 +311,7 @@ struct ProfileView: View {
     private var tabContent: some View {
         switch selectedTab {
         case 0: dressingGrid
-        case 1: avatarSection.padding(.top, 20)
+        case 1: outfitsGrid
         case 2: feedGrid
         default: EmptyView()
         }
@@ -370,6 +370,73 @@ struct ProfileView: View {
                 Text(item.category)
                     .font(.system(size: 9, weight: .medium))
                     .foregroundColor(.white.opacity(0.8))
+                    .padding(.horizontal, 5).padding(.vertical, 3)
+                    .background(Color.black.opacity(0.35))
+                    .clipShape(Capsule())
+                    .padding(5)
+            }
+            .frame(width: geo.size.width, height: geo.size.width)
+            .clipped()
+        }
+        .aspectRatio(1, contentMode: .fit)
+    }
+
+    // MARK: - Tenues grid (3 colonnes)
+
+    private var outfitsGrid: some View {
+        Group {
+            if outfits.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "tshirt")
+                        .font(.system(size: 40))
+                        .foregroundColor(.white.opacity(0.15))
+                    Text("Aucune tenue créée")
+                        .font(.system(size: 14, weight: .light))
+                        .foregroundColor(.white.opacity(0.3))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 60)
+            } else {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3),
+                    spacing: 2
+                ) {
+                    ForEach(outfits, id: \.objectID) { outfit in
+                        NavigationLink(destination: OutfitDetailView(outfit: outfit)) {
+                            outfitCell(outfit: outfit)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 2)
+            }
+        }
+    }
+
+    private func outfitCell(outfit: Outfit) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .bottomLeading) {
+                // Première pièce avec image, sinon dégradé
+                if let firstImage = outfit.itemsArray.first(where: { $0.image != nil })?.image,
+                   let img = UIImage(data: firstImage) {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    LinearGradient(
+                        colors: [Color(red: 70/255, green: 30/255, blue: 140/255),
+                                 Color(red: 40/255, green: 10/255, blue: 80/255)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                    Image(systemName: "tshirt")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white.opacity(0.2))
+                }
+                LinearGradient(colors: [.clear, .black.opacity(0.5)], startPoint: .center, endPoint: .bottom)
+                Text(outfit.title ?? "")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+                    .lineLimit(1)
                     .padding(.horizontal, 5).padding(.vertical, 3)
                     .background(Color.black.opacity(0.35))
                     .clipShape(Capsule())
