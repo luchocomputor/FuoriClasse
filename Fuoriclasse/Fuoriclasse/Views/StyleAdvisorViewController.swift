@@ -104,12 +104,14 @@ struct StyleAdvisorView: View {
     // MARK: - Liste des messages
 
     private var messagesList: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    if messages.isEmpty {
-                        emptyState
-                    }
+        GeometryReader { geo in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        if messages.isEmpty {
+                            emptyState
+                                .frame(minHeight: geo.size.height - 24)
+                        }
                     ForEach(messages) { msg in
                         MessageBubble(message: msg)
                             .id(msg.id)
@@ -135,6 +137,7 @@ struct StyleAdvisorView: View {
             }
             .onChange(of: isLoading) { _ in
                 withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+            }
             }
         }
     }
