@@ -142,12 +142,13 @@ struct StyleAdvisorView: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 28) {
-            Spacer().frame(height: 40)
+        VStack(spacing: 0) {
+            Spacer()
 
             Text("What can I help you with?")
                 .font(.system(size: 15, weight: .light))
                 .foregroundColor(.white.opacity(0.35))
+                .padding(.bottom, 14)
 
             VStack(spacing: 10) {
                 promptRow(
