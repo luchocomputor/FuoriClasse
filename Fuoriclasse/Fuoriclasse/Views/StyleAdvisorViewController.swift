@@ -174,12 +174,13 @@ struct StyleAdvisorView: View {
         left:  (icon: String, title: String, subtitle: String, prompt: String),
         right: (icon: String, title: String, subtitle: String, prompt: String)
     ) -> some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .top, spacing: 10) {
             promptCard(icon: left.icon,  title: left.title,  subtitle: left.subtitle,  prompt: left.prompt)
                 .frame(maxHeight: .infinity)
             promptCard(icon: right.icon, title: right.title, subtitle: right.subtitle, prompt: right.prompt)
                 .frame(maxHeight: .infinity)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private func promptCard(icon: String, title: String, subtitle: String, prompt: String) -> some View {
