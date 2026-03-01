@@ -130,36 +130,39 @@ struct StyleAdvisorView: View {
     // MARK: - État vide
 
     private var emptyState: some View {
-        VStack(spacing: 20) {
-            Spacer().frame(height: 60)
+        VStack(spacing: 28) {
+            Spacer().frame(height: 40)
 
-            ZStack {
-                Circle()
-                    .fill(RadialGradient(
-                        colors: [Color.purple.opacity(0.5), .clear],
-                        center: .center, startRadius: 10, endRadius: 55
-                    ))
-                    .frame(width: 100, height: 100)
-                    .blur(radius: 12)
-                Image(systemName: "sparkles")
-                    .font(.system(size: 46, weight: .thin))
-                    .foregroundStyle(LinearGradient(
-                        colors: [.white, Color(red: 200/255, green: 150/255, blue: 255/255)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ))
-            }
+            // Icône + titre
+            VStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(RadialGradient(
+                            colors: [Color.purple.opacity(0.5), .clear],
+                            center: .center, startRadius: 10, endRadius: 55
+                        ))
+                        .frame(width: 100, height: 100)
+                        .blur(radius: 12)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 46, weight: .thin))
+                        .foregroundStyle(LinearGradient(
+                            colors: [.white, Color(red: 200/255, green: 150/255, blue: 255/255)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        ))
+                }
 
-            VStack(spacing: 5) {
-                Text("Fuoriclasse")
-                    .font(.custom("Futura-Bold", size: 24))
-                    .foregroundStyle(LinearGradient(
-                        colors: [.white, Color(red: 210/255, green: 170/255, blue: 255/255)],
-                        startPoint: .leading, endPoint: .trailing
-                    ))
-                Text("STYLISTE PERSONNEL")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.4))
-                    .tracking(2.5)
+                VStack(spacing: 5) {
+                    Text("Fuoriclasse")
+                        .font(.custom("Futura-Bold", size: 24))
+                        .foregroundStyle(LinearGradient(
+                            colors: [.white, Color(red: 210/255, green: 170/255, blue: 255/255)],
+                            startPoint: .leading, endPoint: .trailing
+                        ))
+                    Text("STYLISTE PERSONNEL")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.white.opacity(0.4))
+                        .tracking(2.5)
+                }
             }
 
             HStack {
@@ -169,15 +172,80 @@ struct StyleAdvisorView: View {
             }
             .padding(.horizontal, 50)
 
-            Text("Posez une question sur votre dressing,\ndemandez une tenue ou envoyez une photo.")
-                .font(.system(size: 15, weight: .light))
-                .foregroundColor(.white.opacity(0.5))
-                .multilineTextAlignment(.center)
-                .lineSpacing(5)
-                .padding(.horizontal, 36)
+            // Encarts de suggestion
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    promptCard(
+                        icon: "figure.run",
+                        title: "Sport demain",
+                        subtitle: "Comment m'habiller ?",
+                        prompt: "J'ai une séance de sport demain matin, comment m'habiller avec les pièces de mon dressing ?"
+                    )
+                    promptCard(
+                        icon: "heart",
+                        title: "Date à venir",
+                        subtitle: "Tenue pour l'occasion",
+                        prompt: "J'ai une date ce soir, quelle tenue me conseillerais-tu parmi mes vêtements ?"
+                    )
+                }
+                HStack(spacing: 10) {
+                    promptCard(
+                        icon: "building.2",
+                        title: "Au bureau",
+                        subtitle: "Look professionnel",
+                        prompt: "Je dois aller au bureau demain, construis-moi un look professionnel avec mon dressing."
+                    )
+                    promptCard(
+                        icon: "sun.max",
+                        title: "Weekend décontracté",
+                        subtitle: "Casual & confortable",
+                        prompt: "C'est le weekend, je veux un look décontracté et confortable. Qu'est-ce que tu me proposes ?"
+                    )
+                }
+            }
+            .padding(.horizontal, 16)
         }
         .frame(maxWidth: .infinity)
         .padding(.bottom, 10)
+    }
+
+    private func promptCard(icon: String, title: String, subtitle: String, prompt: String) -> some View {
+        Button {
+            inputText = prompt
+            isInputFocused = true
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color(red: 120/255, green: 60/255, blue: 200/255).opacity(0.25))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255))
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white)
+                    Text(subtitle)
+                        .font(.system(size: 11, weight: .light))
+                        .foregroundColor(.white.opacity(0.5))
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(0.06))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Indicateur de frappe
@@ -205,87 +273,105 @@ struct StyleAdvisorView: View {
             .overlay(Image(systemName: "sparkles").font(.system(size: 10)).foregroundColor(.white))
     }
 
-    // MARK: - Barre de saisie (style Claude / Gemini)
+    // MARK: - Barre de saisie
 
     private var inputBar: some View {
         VStack(spacing: 0) {
-            // Ligne de séparation nette
             Rectangle()
-                .fill(Color.white.opacity(0.1))
+                .fill(Color.white.opacity(0.08))
                 .frame(height: 1)
 
-            VStack(spacing: 8) {
-                // Aperçu photo si sélectionnée
-                if let data = selectedImageData, let img = UIImage(data: data) {
-                    HStack(spacing: 10) {
-                        Image(uiImage: img)
-                            .resizable().scaledToFill()
-                            .frame(width: 42, height: 42)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                        Text("Photo jointe")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.6))
-                        Spacer()
-                        Button {
-                            withAnimation(.spring(response: 0.3)) { selectedImageData = nil }
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.white.opacity(0.4))
-                        }
+            // Aperçu photo jointe
+            if let data = selectedImageData, let img = UIImage(data: data) {
+                HStack(spacing: 12) {
+                    Image(uiImage: img)
+                        .resizable().scaledToFill()
+                        .frame(width: 52, height: 52)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        )
+                    Text("Photo jointe")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                    Spacer()
+                    Button {
+                        withAnimation(.spring(response: 0.3)) { selectedImageData = nil }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(.white.opacity(0.3))
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .buttonStyle(.plain)
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.spring(response: 0.3), value: selectedImageData != nil)
+            }
 
-                // Ligne principale : bouton photo + champ + bouton envoi
-                HStack(alignment: .bottom, spacing: 10) {
-                    // Bouton photo
-                    Button { showPhotoPicker = true } label: {
+            // Ligne principale
+            HStack(alignment: .bottom, spacing: 10) {
+                // Bouton photo
+                Button { showPhotoPicker = true } label: {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(selectedImageData != nil ? 0.12 : 0.07))
+                            .frame(width: 38, height: 38)
                         Image(systemName: selectedImageData != nil ? "photo.fill" : "photo")
-                            .font(.system(size: 20))
+                            .font(.system(size: 15, weight: .medium))
                             .foregroundColor(selectedImageData != nil
                                 ? Color(red: 180/255, green: 120/255, blue: 255/255)
-                                : .white.opacity(0.5))
-                            .frame(width: 36, height: 36)
+                                : .white.opacity(0.45))
                     }
-
-                    // Champ de texte avec fond gris — même pattern que Claude/Gemini
-                    HStack(alignment: .bottom, spacing: 6) {
-                        TextField("Message…", text: $inputText, axis: .vertical)
-                            .focused($isInputFocused)
-                            .lineLimit(1...6)
-                            .font(.system(size: 16))
-                            .foregroundColor(.white)
-                            .tint(Color(red: 180/255, green: 120/255, blue: 255/255))
-
-                        // Bouton envoi à l'intérieur du champ (iMessage / Claude style)
-                        Button(action: sendMessage) {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.system(size: 30))
-                                .foregroundColor(canSend
-                                    ? Color(red: 160/255, green: 100/255, blue: 240/255)
-                                    : .white.opacity(0.2))
-                        }
-                        .disabled(!canSend)
-                        .animation(.spring(response: 0.25), value: canSend)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.white.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                    )
                 }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 10)
-                .padding(.top, 8)
+                .buttonStyle(.plain)
+
+                // Champ de texte (pill indépendante)
+                TextField("Message…", text: $inputText, axis: .vertical)
+                    .focused($isInputFocused)
+                    .lineLimit(1...6)
+                    .font(.system(size: 15))
+                    .foregroundColor(.white)
+                    .tint(Color(red: 180/255, green: 120/255, blue: 255/255))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .background(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(Color.white.opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                    .stroke(Color.white.opacity(0.13), lineWidth: 1)
+                            )
+                    )
+
+                // Bouton envoi (cercle violet séparé)
+                Button(action: sendMessage) {
+                    ZStack {
+                        Circle()
+                            .fill(canSend
+                                ? Color(red: 120/255, green: 60/255, blue: 200/255)
+                                : Color.white.opacity(0.07))
+                            .frame(width: 38, height: 38)
+                            .shadow(
+                                color: Color(red: 120/255, green: 60/255, blue: 200/255).opacity(canSend ? 0.4 : 0),
+                                radius: 8, x: 0, y: 3
+                            )
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(canSend ? .white : .white.opacity(0.18))
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSend)
+                .animation(.spring(response: 0.25), value: canSend)
             }
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
         }
-        // Fond solide et opaque — toujours visible
-        .background(Color(red: 18/255, green: 6/255, blue: 40/255))
+        .background(Color(red: 15/255, green: 5/255, blue: 38/255))
     }
 
     private var canSend: Bool {
