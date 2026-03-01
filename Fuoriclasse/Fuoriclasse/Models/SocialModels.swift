@@ -55,4 +55,11 @@ struct PublicProfile: Identifiable, Hashable {
     let username: String
     let bio: String?
     let location: String?
+    var isPrivate: Bool = false
+}
+
+// Navigation target pour liste abonnés/abonnements
+enum FollowListTarget: Hashable {
+    case followers(UUID)
+    case following(UUID)
 }

@@ -10,9 +10,11 @@ struct UserPublicProfileView: View {
     @State private var isFollowing = false
     @State private var isLoadingFollow = false
     @State private var isLoading = true
+    @State private var followListTarget: FollowListTarget? = nil
 
     private var currentUserId: UUID? { auth.session?.user.id }
     private var isOwnProfile: Bool { currentUserId == profile.id }
+    private var isLocked: Bool { profile.isPrivate && !isFollowing && !isOwnProfile }
 
     var body: some View {
         ZStack {
@@ -26,112 +28,18 @@ struct UserPublicProfileView: View {
             .ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: 24) {
-                    // Avatar + infos
-                    VStack(spacing: 12) {
-                        Circle()
-                            .fill(Color(red: 120/255, green: 60/255, blue: 200/255))
-                            .frame(width: 72, height: 72)
-                            .overlay(
-                                Text(String(profile.username.prefix(2)).uppercased())
-                                    .font(.custom("Futura-Bold", size: 24))
-                                    .foregroundColor(.white)
-                            )
+                VStack(alignment: .leading, spacing: 0) {
+                    profileHeader
+                        .padding(.top, 12)
+                        .padding(.bottom, 16)
 
-                        Text("@\(profile.username)")
-                            .font(.custom("Futura-Bold", size: 20))
-                            .foregroundColor(.white)
+                    Divider()
+                        .background(Color.white.opacity(0.1))
 
-                        if let bio = profile.bio, !bio.isEmpty {
-                            Text(bio)
-                                .font(.system(size: 14, weight: .light))
-                                .foregroundColor(.white.opacity(0.7))
-                                .multilineTextAlignment(.center)
-                        }
-
-                        if let location = profile.location, !location.isEmpty {
-                            HStack(spacing: 4) {
-                                Image(systemName: "mappin.and.ellipse")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.white.opacity(0.5))
-                                Text(location)
-                                    .font(.system(size: 13))
-                                    .foregroundColor(.white.opacity(0.5))
-                            }
-                        }
-                    }
-                    .padding(.top, 8)
-
-                    // Stats
-                    HStack(spacing: 32) {
-                        statsItem(value: followStats.followers, label: "Abonnés")
-                        statsItem(value: followStats.following, label: "Abonnements")
-                        statsItem(value: posts.count, label: "Posts")
-                    }
-                    .padding(.vertical, 16)
-                    .padding(.horizontal, 24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.07))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.white.opacity(0.09), lineWidth: 1)
-                            )
-                    )
-                    .padding(.horizontal, 16)
-
-                    // Follow button
-                    if !isOwnProfile {
-                        Button {
-                            Task { await toggleFollow() }
-                        } label: {
-                            HStack(spacing: 8) {
-                                if isLoadingFollow {
-                                    ProgressView().tint(.white).scaleEffect(0.85)
-                                } else {
-                                    Image(systemName: isFollowing ? "person.badge.minus" : "person.badge.plus")
-                                    Text(isFollowing ? "Ne plus suivre" : "Suivre")
-                                        .font(.system(size: 15, weight: .semibold))
-                                }
-                            }
-                            .foregroundColor(.white)
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 32)
-                            .background(
-                                Capsule()
-                                    .fill(isFollowing
-                                          ? Color.white.opacity(0.12)
-                                          : Color(red: 120/255, green: 60/255, blue: 200/255))
-                                    .shadow(color: Color(red: 120/255, green: 60/255, blue: 200/255).opacity(isFollowing ? 0 : 0.4),
-                                            radius: 10, x: 0, y: 4)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(isLoadingFollow)
-                    }
-
-                    // Posts grid
-                    if isLoading {
-                        ProgressView()
-                            .tint(.white.opacity(0.5))
-                            .padding(.top, 32)
-                    } else if posts.isEmpty {
-                        VStack(spacing: 12) {
-                            Image(systemName: "photo.on.rectangle.angled")
-                                .font(.system(size: 40))
-                                .foregroundColor(.white.opacity(0.2))
-                            Text("Aucun post pour l'instant")
-                                .font(.system(size: 14, weight: .light))
-                                .foregroundColor(.white.opacity(0.35))
-                        }
-                        .padding(.top, 32)
+                    if isLocked {
+                        lockedState
                     } else {
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                            ForEach(posts) { feedPost in
-                                postGridCell(feedPost: feedPost)
-                            }
-                        }
-                        .padding(.horizontal, 16)
+                        postsGrid
                     }
                 }
                 .padding(.bottom, 32)
@@ -140,58 +48,264 @@ struct UserPublicProfileView: View {
         .navigationTitle(profile.username)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .navigationDestination(item: $followListTarget) { target in
+            switch target {
+            case .followers(let id):
+                FollowersListView(userId: id, mode: .followers).environmentObject(auth)
+            case .following(let id):
+                FollowersListView(userId: id, mode: .following).environmentObject(auth)
+            }
+        }
         .task { await loadData() }
     }
 
-    @ViewBuilder
-    private func statsItem(value: Int, label: String) -> some View {
-        VStack(spacing: 4) {
+    // MARK: - Header (Instagram-style)
+
+    private var profileHeader: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Ligne avatar + stats
+            HStack(alignment: .center, spacing: 0) {
+                avatarCircle(size: 86)
+                Spacer(minLength: 16)
+                statsRow
+            }
+            .padding(.horizontal, 16)
+
+            // Identité
+            VStack(alignment: .leading, spacing: 4) {
+                Text(profile.username)
+                    .font(.custom("Futura-Bold", size: 16))
+                    .foregroundColor(.white)
+                if let bio = profile.bio, !bio.isEmpty {
+                    Text(bio)
+                        .font(.system(size: 13, weight: .light))
+                        .foregroundColor(.white.opacity(0.7))
+                        .lineLimit(3)
+                }
+                if let location = profile.location, !location.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin.circle.fill").font(.system(size: 11))
+                        Text(location).font(.system(size: 12, weight: .light))
+                    }
+                    .foregroundColor(.white.opacity(0.45))
+                }
+            }
+            .padding(.horizontal, 16)
+
+            // Bouton Suivre / modifier
+            if !isOwnProfile {
+                followButton
+                    .padding(.horizontal, 16)
+            }
+        }
+    }
+
+    private func avatarCircle(size: CGFloat) -> some View {
+        let parts = profile.username.split(separator: " ")
+        let initials = parts.count >= 2
+            ? String(parts[0].prefix(1) + parts[1].prefix(1)).uppercased()
+            : String(profile.username.prefix(2)).uppercased()
+        return Circle()
+            .fill(LinearGradient(
+                colors: [Color(red: 120/255, green: 60/255, blue: 200/255),
+                         Color(red: 80/255, green: 30/255, blue: 140/255)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            ))
+            .frame(width: size, height: size)
+            .overlay(
+                Text(initials)
+                    .font(.custom("Futura-Bold", size: size * 0.32))
+                    .foregroundColor(.white)
+            )
+            .overlay(
+                Circle().stroke(
+                    LinearGradient(
+                        colors: [Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.6),
+                                 Color.clear],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 2
+                )
+            )
+    }
+
+    private var statsRow: some View {
+        HStack(spacing: 0) {
+            statCell(value: posts.count, label: "publications")
+
+            statDivider
+
+            Button {
+                followListTarget = .followers(profile.id)
+            } label: {
+                statCell(value: followStats.followers, label: "abonnés")
+            }
+            .buttonStyle(.plain)
+
+            statDivider
+
+            Button {
+                followListTarget = .following(profile.id)
+            } label: {
+                statCell(value: followStats.following, label: "abonnements")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func statCell(value: Int, label: String) -> some View {
+        VStack(spacing: 3) {
             Text("\(value)")
-                .font(.custom("Futura-Bold", size: 20))
+                .font(.custom("Futura-Bold", size: 18))
                 .foregroundColor(.white)
             Text(label)
-                .font(.system(size: 12, weight: .light))
+                .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.white.opacity(0.5))
+                .tracking(0.1)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+    }
+
+    private var statDivider: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.12))
+            .frame(width: 1, height: 26)
+    }
+
+    private var followButton: some View {
+        Button {
+            Task { await toggleFollow() }
+        } label: {
+            HStack(spacing: 8) {
+                if isLoadingFollow {
+                    ProgressView().tint(.white).scaleEffect(0.85)
+                } else {
+                    Text(isFollowing ? "Suivi" : "Suivre")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(isFollowing ? .white.opacity(0.8) : .white)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 9)
+                    .fill(isFollowing
+                          ? Color.white.opacity(0.09)
+                          : Color(red: 120/255, green: 60/255, blue: 200/255))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 9)
+                            .stroke(Color.white.opacity(isFollowing ? 0.2 : 0), lineWidth: 1)
+                    )
+                    .shadow(
+                        color: Color(red: 120/255, green: 60/255, blue: 200/255).opacity(isFollowing ? 0 : 0.35),
+                        radius: 8, x: 0, y: 3
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isLoadingFollow)
+    }
+
+    // MARK: - Locked state (profil privé)
+
+    private var lockedState: some View {
+        VStack(spacing: 18) {
+            Spacer().frame(height: 32)
+            Image(systemName: "lock.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color(red: 160/255, green: 100/255, blue: 240/255),
+                                 Color(red: 100/255, green: 60/255, blue: 180/255)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                )
+            Text("Ce compte est privé")
+                .font(.custom("Futura-Bold", size: 18))
+                .foregroundColor(.white.opacity(0.7))
+            Text("Abonne-toi pour voir ses publications.")
+                .font(.system(size: 14, weight: .light))
+                .foregroundColor(.white.opacity(0.4))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 32)
+    }
+
+    // MARK: - Posts grid (3 colonnes, carré comme Instagram)
+
+    @ViewBuilder
+    private var postsGrid: some View {
+        if isLoading {
+            HStack { Spacer(); ProgressView().tint(.white.opacity(0.5)); Spacer() }
+                .padding(.top, 48)
+        } else if posts.isEmpty {
+            VStack(spacing: 12) {
+                Image(systemName: "camera")
+                    .font(.system(size: 44))
+                    .foregroundColor(.white.opacity(0.15))
+                Text("Aucune publication")
+                    .font(.system(size: 14, weight: .light))
+                    .foregroundColor(.white.opacity(0.35))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 48)
+        } else {
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3),
+                spacing: 2
+            ) {
+                ForEach(posts) { feedPost in
+                    postSquare(feedPost: feedPost)
+                }
+            }
+            .padding(.top, 2)
         }
     }
 
     @ViewBuilder
-    private func postGridCell(feedPost: FeedPost) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let firstUrl = feedPost.post.imageUrls.first {
-                AsyncImage(url: URL(string: firstUrl)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(height: 120)
-                            .clipped()
-                    default:
-                        Rectangle()
-                            .fill(Color.white.opacity(0.07))
-                            .frame(height: 120)
-                            .overlay(Image(systemName: "hanger").foregroundColor(.white.opacity(0.2)))
+    private func postSquare(feedPost: FeedPost) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .bottomLeading) {
+                if let firstUrl = feedPost.post.imageUrls.first {
+                    AsyncImage(url: URL(string: firstUrl)) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        default:
+                            Rectangle().fill(Color.white.opacity(0.07))
+                                .overlay(Image(systemName: "hanger").foregroundColor(.white.opacity(0.2)))
+                        }
                     }
+                } else {
+                    Rectangle().fill(Color.white.opacity(0.07))
+                        .overlay(Image(systemName: "hanger").foregroundColor(.white.opacity(0.2)))
                 }
-                .cornerRadius(12)
-            } else {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.07))
-                    .frame(height: 120)
-                    .overlay(Image(systemName: "hanger").foregroundColor(.white.opacity(0.2)))
-            }
 
-            if let title = feedPost.post.outfitTitle {
-                Text(title)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white.opacity(0.8))
-                    .lineLimit(1)
-                    .padding(.horizontal, 4)
+                // Overlay gradient + like count
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.45)],
+                    startPoint: .center, endPoint: .bottom
+                )
+
+                HStack(spacing: 4) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.85))
+                    Text("\(feedPost.likesCount)")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.85))
+                }
+                .padding(6)
             }
+            .frame(width: geo.size.width, height: geo.size.width) // carré
+            .clipped()
         }
-        .padding(.bottom, 4)
+        .aspectRatio(1, contentMode: .fit)
     }
+
+    // MARK: - Data loading
 
     private func loadData() async {
         guard let currentId = currentUserId else { return }
@@ -205,9 +319,7 @@ struct UserPublicProfileView: View {
             posts = fetchedPosts
             followStats = stats
             isFollowing = following
-        } catch {
-            // Silently ignore — affiche état vide
-        }
+        } catch {}
         isLoading = false
     }
 
@@ -225,6 +337,6 @@ struct UserPublicProfileView: View {
                 isFollowing = true
                 followStats.followers += 1
             }
-        } catch { /* Silently ignore */ }
+        } catch {}
     }
 }

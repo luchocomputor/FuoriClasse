@@ -7,11 +7,9 @@ struct SocialFeedView: View {
     @State private var selectedTab = 0
     @State private var feedPosts: [FeedPost] = []
     @State private var discoverPosts: [FeedPost] = []
-    @State private var searchText = ""
-    @State private var searchResults: [PublicProfile] = []
     @State private var isLoading = false
-    @State private var isSearching = false
     @State private var showCreatePost = false
+    @State private var showSearch = false
     @State private var navigateToProfile: PublicProfile? = nil
 
     private var currentUserId: UUID? { auth.session?.user.id }
@@ -20,7 +18,7 @@ struct SocialFeedView: View {
         NavigationStack {
             ZStack {
                 VStack(spacing: 0) {
-                    HStack {
+                    HStack(alignment: .center) {
                         Text("Social")
                             .font(.custom("Futura-Bold", size: 30))
                             .foregroundStyle(LinearGradient(
@@ -28,6 +26,21 @@ struct SocialFeedView: View {
                                 startPoint: .leading, endPoint: .trailing
                             ))
                         Spacer()
+                        Button { showSearch = true } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(Color(red: 120/255, green: 60/255, blue: 200/255))
+                                    .frame(width: 40, height: 40)
+                                    .shadow(
+                                        color: Color(red: 120/255, green: 60/255, blue: 200/255).opacity(0.45),
+                                        radius: 8, x: 0, y: 3
+                                    )
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
@@ -98,6 +111,10 @@ struct SocialFeedView: View {
                 .environmentObject(auth)
                 .environment(\.managedObjectContext, viewContext)
             }
+            .sheet(isPresented: $showSearch) {
+                UserSearchView()
+                    .environmentObject(auth)
+            }
             .task { await refreshFeed() }
         }
     }
@@ -153,14 +170,8 @@ struct SocialFeedView: View {
     // MARK: - Découvrir
 
     private var discoverContent: some View {
-        VStack(spacing: 0) {
-            searchBarView
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-
-            if !searchText.isEmpty {
-                userSearchResultsList
-            } else if isLoading && discoverPosts.isEmpty {
+        Group {
+            if isLoading && discoverPosts.isEmpty {
                 loadingState
             } else if discoverPosts.isEmpty {
                 emptyDiscoverState
@@ -168,111 +179,6 @@ struct SocialFeedView: View {
                 postList(posts: $discoverPosts)
             }
         }
-    }
-
-    // MARK: - Search bar
-
-    private var searchBarView: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.white.opacity(0.4))
-                .font(.system(size: 14))
-            TextField("", text: $searchText, prompt: Text("Rechercher un utilisateur...").foregroundColor(.white.opacity(0.3)))
-                .foregroundColor(.white)
-                .font(.system(size: 15))
-                .autocorrectionDisabled()
-                .onChange(of: searchText) { _, newValue in
-                    Task { await performSearch(query: newValue) }
-                }
-            if !searchText.isEmpty {
-                Button { searchText = "" } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.white.opacity(0.4))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.07))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.09), lineWidth: 1)
-                )
-        )
-    }
-
-    // MARK: - User search results
-
-    private var userSearchResultsList: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                if isSearching {
-                    ProgressView()
-                        .tint(.white.opacity(0.5))
-                        .padding(.top, 24)
-                } else if searchResults.isEmpty {
-                    Text("Aucun utilisateur trouvé")
-                        .font(.system(size: 14, weight: .light))
-                        .foregroundColor(.white.opacity(0.4))
-                        .padding(.top, 32)
-                } else {
-                    ForEach(searchResults) { profile in
-                        Button {
-                            navigateToProfile = profile
-                        } label: {
-                            userSearchRow(profile: profile)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 4)
-            .padding(.bottom, 100)
-        }
-    }
-
-    @ViewBuilder
-    private func userSearchRow(profile: PublicProfile) -> some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(Color(red: 120/255, green: 60/255, blue: 200/255))
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Text(String(profile.username.prefix(2)).uppercased())
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("@\(profile.username)")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.white)
-                if let bio = profile.bio, !bio.isEmpty {
-                    Text(bio)
-                        .font(.system(size: 12, weight: .light))
-                        .foregroundColor(.white.opacity(0.5))
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12))
-                .foregroundColor(.white.opacity(0.3))
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.07))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.09), lineWidth: 1)
-                )
-        )
     }
 
     // MARK: - Post list
@@ -362,18 +268,6 @@ struct SocialFeedView: View {
             discoverPosts = d
         } catch { /* Silently ignore */ }
         isLoading = false
-    }
-
-    private func performSearch(query: String) async {
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
-            searchResults = []
-            return
-        }
-        isSearching = true
-        do {
-            searchResults = try await SocialService.shared.searchUsers(query: query)
-        } catch { searchResults = [] }
-        isSearching = false
     }
 
     private func toggleLike(index: Int, in posts: Binding<[FeedPost]>) async {

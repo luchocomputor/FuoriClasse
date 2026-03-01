@@ -232,6 +232,49 @@ final class SocialService {
             .execute()
     }
 
+    // MARK: - Followers / Following lists
+
+    func fetchFollowers(userId: UUID) async throws -> [PublicProfile] {
+        struct FollowerRow: Decodable { let follower_id: UUID }
+        let rows: [FollowerRow] = try await client
+            .from("follows")
+            .select("follower_id")
+            .eq("following_id", value: userId.uuidString)
+            .execute()
+            .value
+        let ids = rows.map { $0.follower_id.uuidString }
+        guard !ids.isEmpty else { return [] }
+        return try await fetchProfiles(ids: ids)
+    }
+
+    func fetchFollowing(userId: UUID) async throws -> [PublicProfile] {
+        struct FollowingRow: Decodable { let following_id: UUID }
+        let rows: [FollowingRow] = try await client
+            .from("follows")
+            .select("following_id")
+            .eq("follower_id", value: userId.uuidString)
+            .execute()
+            .value
+        let ids = rows.map { $0.following_id.uuidString }
+        guard !ids.isEmpty else { return [] }
+        return try await fetchProfiles(ids: ids)
+    }
+
+    private func fetchProfiles(ids: [String]) async throws -> [PublicProfile] {
+        struct ProfileResult: Decodable {
+            let id: UUID; let username: String?; let bio: String?; let location: String?
+        }
+        let profiles: [ProfileResult] = try await client
+            .from("profiles")
+            .select("id, username, bio, location")
+            .in("id", values: ids)
+            .execute()
+            .value
+        return profiles.map {
+            PublicProfile(id: $0.id, username: $0.username ?? "Utilisateur", bio: $0.bio, location: $0.location)
+        }
+    }
+
     // MARK: - Stats
 
     func fetchFollowStats(userId: UUID) async throws -> (followers: Int, following: Int) {

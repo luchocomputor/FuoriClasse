@@ -19,6 +19,8 @@ struct ProfileView: View {
     @State private var location         = ""
     @State private var bio              = ""
 
+    @State private var followStats: (followers: Int, following: Int) = (0, 0)
+
     @State private var profileImageData: Data? = UserDefaults.standard.data(forKey: "profile_photo")
     @State private var showPhotoPicker      = false
     @State private var showEditSheet        = false
@@ -38,7 +40,6 @@ struct ProfileView: View {
         ScrollView {
             VStack(spacing: 24) {
                 heroSection
-                statsBar
                 wardrobePreview
                 avatarSection
                 Spacer().frame(height: 20)
@@ -60,6 +61,14 @@ struct ProfileView: View {
         }
         .onAppear { avatarManager.loadLocalAvatar() }
         .toolbar(.hidden, for: .navigationBar)
+        .navigationDestination(for: FollowListTarget.self) { target in
+            switch target {
+            case .followers(let id):
+                FollowersListView(userId: id, mode: .followers).environmentObject(auth)
+            case .following(let id):
+                FollowersListView(userId: id, mode: .following).environmentObject(auth)
+            }
+        }
         .overlay(alignment: .topTrailing) {
             Button { showSettings = true } label: {
                 Image(systemName: "gearshape.fill")
@@ -104,133 +113,154 @@ struct ProfileView: View {
         username = profile.username ?? ""
         location = profile.location ?? ""
         bio      = profile.bio      ?? ""
+        if let userId = auth.session?.user.id,
+           let stats = try? await SocialService.shared.fetchFollowStats(userId: userId) {
+            followStats = stats
+        }
     }
 
-    // MARK: - Hero (centré)
+    // MARK: - Hero (Instagram-style)
 
     private var heroSection: some View {
-        VStack(spacing: 14) {
-            // Photo de profil
-            ZStack(alignment: .bottomTrailing) {
-                Group {
-                    if let data = profileImageData, let img = UIImage(data: data) {
-                        Image(uiImage: img)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        ZStack {
-                            LinearGradient(
-                                colors: [Color(red: 100/255, green: 50/255, blue: 180/255),
-                                         Color(red: 50/255, green: 15/255, blue: 100/255)],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            )
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 36))
-                                .foregroundColor(.white.opacity(0.5))
-                        }
-                    }
-                }
-                .frame(width: 88, height: 88)
-                .clipShape(Circle())
-                .overlay(
-                    Circle().stroke(
-                        LinearGradient(
-                            colors: [Color(red: 180/255, green: 120/255, blue: 255/255),
-                                     Color(red: 80/255, green: 30/255, blue: 160/255)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 2.5
-                    )
-                )
-                .shadow(color: .purple.opacity(0.4), radius: 10, x: 0, y: 4)
-
-                Button { showPhotoPicker = true } label: {
-                    ZStack {
-                        Circle()
-                            .fill(Color(red: 140/255, green: 80/255, blue: 220/255))
-                            .frame(width: 28, height: 28)
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 11))
-                            .foregroundColor(.white)
-                    }
-                }
-                .offset(x: 2, y: 2)
+        VStack(alignment: .leading, spacing: 12) {
+            // Ligne photo + stats
+            HStack(alignment: .center, spacing: 0) {
+                profilePhoto
+                Spacer(minLength: 16)
+                statsRow
             }
+            .padding(.horizontal, 16)
 
-            // Pseudo + localisation + bio
-            VStack(spacing: 6) {
+            // Identité
+            VStack(alignment: .leading, spacing: 4) {
                 Text(username.isEmpty ? "Ajouter un pseudo" : username)
-                    .font(.custom("Futura-Bold", size: 22))
+                    .font(.custom("Futura-Bold", size: 16))
                     .foregroundColor(username.isEmpty ? .white.opacity(0.3) : .white)
-
-                if !location.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "mappin.circle.fill")
-                            .font(.system(size: 11))
-                        Text(location)
-                            .font(.system(size: 13, weight: .light))
-                    }
-                    .foregroundColor(.white.opacity(0.45))
-                }
-
                 if !bio.isEmpty {
                     Text(bio)
                         .font(.system(size: 13, weight: .light))
-                        .foregroundColor(.white.opacity(0.5))
-                        .multilineTextAlignment(.center)
+                        .foregroundColor(.white.opacity(0.7))
                         .lineLimit(3)
-                        .padding(.horizontal, 24)
+                }
+                if !location.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin.circle.fill").font(.system(size: 11))
+                        Text(location).font(.system(size: 12, weight: .light))
+                    }
+                    .foregroundColor(.white.opacity(0.45))
                 }
             }
+            .padding(.horizontal, 16)
 
             // Bouton modifier
             Button { showEditSheet = true } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 13))
-                    Text("Modifier le profil")
-                        .font(.system(size: 14, weight: .medium))
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 9)
-                .background(
-                    Capsule()
-                        .fill(Color(red: 140/255, green: 80/255, blue: 220/255).opacity(0.75))
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.4), lineWidth: 1)
-                )
+                Text("Modifier le profil")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 9)
+                            .fill(Color.white.opacity(0.09))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 9)
+                                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                            )
+                    )
             }
             .buttonStyle(.plain)
+            .padding(.horizontal, 16)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 20)
     }
 
-    // MARK: - Stats bar
-
-    private var statsBar: some View {
-        HStack(spacing: 0) {
-            Spacer()
-            StatTile(value: "\(itemCount)", label: "pièces")
-            Rectangle()
-                .fill(Color.white.opacity(0.12))
-                .frame(width: 1, height: 32)
-            StatTile(value: "\(outfits.count)", label: "styles adoptés")
-            Spacer()
-        }
-        .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white.opacity(0.06))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+    // Photo de profil (88 × 88 avec bouton caméra)
+    private var profilePhoto: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Group {
+                if let data = profileImageData, let img = UIImage(data: data) {
+                    Image(uiImage: img).resizable().scaledToFill()
+                } else {
+                    ZStack {
+                        LinearGradient(
+                            colors: [Color(red: 100/255, green: 50/255, blue: 180/255),
+                                     Color(red: 50/255, green: 15/255, blue: 100/255)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 34))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                }
+            }
+            .frame(width: 86, height: 86)
+            .clipShape(Circle())
+            .overlay(
+                Circle().stroke(
+                    LinearGradient(
+                        colors: [Color(red: 180/255, green: 120/255, blue: 255/255),
+                                 Color(red: 80/255, green: 30/255, blue: 160/255)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 2.5
                 )
-        )
-        .padding(.horizontal, 20)
+            )
+            .shadow(color: .purple.opacity(0.35), radius: 10, x: 0, y: 4)
+
+            Button { showPhotoPicker = true } label: {
+                ZStack {
+                    Circle().fill(Color(red: 140/255, green: 80/255, blue: 220/255)).frame(width: 26, height: 26)
+                    Image(systemName: "camera.fill").font(.system(size: 10)).foregroundColor(.white)
+                }
+            }
+            .offset(x: 2, y: 2)
+        }
+    }
+
+    // Stats en ligne (pièces | abonnés | abonnements)
+    private var statsRow: some View {
+        HStack(spacing: 0) {
+            instaStatCell(value: "\(itemCount)", label: "pièces")
+
+            statVerticalDivider
+
+            if let userId = auth.session?.user.id {
+                NavigationLink(value: FollowListTarget.followers(userId)) {
+                    instaStatCell(value: "\(followStats.followers)", label: "abonnés")
+                }
+                .buttonStyle(.plain)
+
+                statVerticalDivider
+
+                NavigationLink(value: FollowListTarget.following(userId)) {
+                    instaStatCell(value: "\(followStats.following)", label: "abonnements")
+                }
+                .buttonStyle(.plain)
+            } else {
+                instaStatCell(value: "0", label: "abonnés")
+                statVerticalDivider
+                instaStatCell(value: "0", label: "abonnements")
+            }
+        }
+    }
+
+    private func instaStatCell(value: String, label: String) -> some View {
+        VStack(spacing: 3) {
+            Text(value)
+                .font(.custom("Futura-Bold", size: 18))
+                .foregroundColor(.white)
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.white.opacity(0.5))
+                .tracking(0.1)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+    }
+
+    private var statVerticalDivider: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.12))
+            .frame(width: 1, height: 26)
     }
 
     // MARK: - Aperçu dressing
