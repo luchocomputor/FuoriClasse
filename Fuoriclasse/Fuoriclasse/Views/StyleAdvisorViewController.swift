@@ -142,24 +142,25 @@ struct StyleAdvisorView: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 10) {
-            Spacer().frame(height: 24)
+        VStack(spacing: 28) {
+            Spacer().frame(height: 40)
 
             Text("What can I help you with?")
                 .font(.system(size: 15, weight: .light))
                 .foregroundColor(.white.opacity(0.35))
-                .padding(.bottom, 6)
 
-            promptRow(
-                left:  (icon: "figure.run",  title: "Sport tomorrow",    subtitle: "What should I wear?",    prompt: "I have a workout tomorrow morning — how should I dress using my wardrobe?"),
-                right: (icon: "heart",        title: "Upcoming date",     subtitle: "Outfit for the occasion", prompt: "I have a date tonight. What outfit would you recommend from my wardrobe?")
-            )
-            promptRow(
-                left:  (icon: "building.2",  title: "Office look",       subtitle: "Professional style",      prompt: "I need to go to the office tomorrow. Build me a professional look from my wardrobe."),
-                right: (icon: "sun.max",      title: "Weekend",           subtitle: "Casual & comfortable",    prompt: "It's the weekend and I want a relaxed, comfortable look. What do you suggest from my wardrobe?")
-            )
+            VStack(spacing: 10) {
+                promptRow(
+                    left:  (icon: "figure.run",  title: "Sport tomorrow",  subtitle: "What should I wear?",    prompt: "I have a workout tomorrow morning — how should I dress using my wardrobe?"),
+                    right: (icon: "heart",        title: "Upcoming date",   subtitle: "Outfit for the occasion", prompt: "I have a date tonight. What outfit would you recommend from my wardrobe?")
+                )
+                promptRow(
+                    left:  (icon: "building.2",  title: "Office look",     subtitle: "Professional style",      prompt: "I need to go to the office tomorrow. Build me a professional look from my wardrobe."),
+                    right: (icon: "sun.max",      title: "Weekend",         subtitle: "Casual & comfortable",    prompt: "It's the weekend and I want a relaxed, comfortable look. What do you suggest from my wardrobe?")
+                )
+            }
+            .padding(.horizontal, 16)
         }
-        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
         .padding(.bottom, 10)
     }
