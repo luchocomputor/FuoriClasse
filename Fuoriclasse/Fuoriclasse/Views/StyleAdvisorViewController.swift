@@ -30,6 +30,25 @@ struct StyleAdvisorView: View {
             // Le VStack (messages + inputBar) occupe tout l'espace disponible
             // et remonte naturellement quand le clavier apparaît.
             VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Fuoriclasse")
+                            .font(.custom("Futura-Bold", size: 22))
+                            .foregroundStyle(LinearGradient(
+                                colors: [.white, Color(red: 210/255, green: 170/255, blue: 255/255)],
+                                startPoint: .leading, endPoint: .trailing
+                            ))
+                        Text("STYLISTE PERSONNEL")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.35))
+                            .tracking(1.8)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 14)
+                .padding(.bottom, 8)
+
                 messagesList
                 inputBar
             }
@@ -55,11 +74,7 @@ struct StyleAdvisorView: View {
                 }
                 .ignoresSafeArea()
             }
-            .navigationTitle("Conseiller Mode")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            // Bouton "Fermer" au-dessus du clavier — doit être ici,
-            // pas sur le TextField, pour fonctionner dans un NavigationStack
+            .toolbar(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()

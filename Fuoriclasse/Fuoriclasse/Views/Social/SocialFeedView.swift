@@ -20,9 +20,21 @@ struct SocialFeedView: View {
         NavigationStack {
             ZStack {
                 VStack(spacing: 0) {
+                    HStack {
+                        Text("Social")
+                            .font(.custom("Futura-Bold", size: 30))
+                            .foregroundStyle(LinearGradient(
+                                colors: [.white, Color(red: 210/255, green: 170/255, blue: 255/255)],
+                                startPoint: .leading, endPoint: .trailing
+                            ))
+                        Spacer()
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    .padding(.bottom, 12)
+
                     segmentedControl
                         .padding(.horizontal, 16)
-                        .padding(.top, 12)
                         .padding(.bottom, 6)
 
                     if selectedTab == 0 {
@@ -74,9 +86,7 @@ struct SocialFeedView: View {
                 }
                 .ignoresSafeArea()
             }
-            .navigationTitle("Social")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(item: $navigateToProfile) { profile in
                 UserPublicProfileView(profile: profile)
                     .environmentObject(auth)

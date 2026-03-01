@@ -30,6 +30,7 @@ struct ProfileView: View {
     @State private var avatarDownloadError: String?
     @State private var capturedGLBURL: URL?
     @State private var avaturnCoordinator: AvaturnCreatorView.Coordinator?
+    @State private var showDeleteAvatarAlert = false
 
     private var itemCount: Int { dressingItems.count }
 
@@ -58,16 +59,13 @@ struct ProfileView: View {
             .ignoresSafeArea()
         }
         .onAppear { avatarManager.loadLocalAvatar() }
-        .navigationTitle("Profil")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarColorScheme(.dark, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { showSettings = true } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.white.opacity(0.75))
-                }
+        .toolbar(.hidden, for: .navigationBar)
+        .overlay(alignment: .topTrailing) {
+            Button { showSettings = true } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(.white.opacity(0.60))
+                    .padding(16)
             }
         }
         .sheet(isPresented: $showPhotoPicker) {
@@ -88,6 +86,12 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showAvatarCreator, onDismiss: { capturedGLBURL = nil }) {
             avatarCreatorSheet
+        }
+        .alert("Supprimer l'avatar ?", isPresented: $showDeleteAvatarAlert) {
+            Button("Supprimer", role: .destructive) { avatarManager.deleteAvatar() }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text("L'avatar sera définitivement supprimé.")
         }
         .task { await reloadProfile() }
     }
@@ -233,10 +237,20 @@ struct ProfileView: View {
 
     private var wardrobePreview: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(LinearGradient(
+                        colors: [
+                            Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.85),
+                            Color(red: 140/255, green: 80/255, blue: 220/255).opacity(0.35)
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    ))
+                    .frame(width: 2, height: 14)
                 Text("Mon dressing")
-                    .font(.custom("Futura-Bold", size: 16))
-                    .foregroundColor(.white)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.65))
+                    .tracking(0.3)
                 Spacer()
             }
             .padding(.horizontal, 20)
@@ -276,12 +290,29 @@ struct ProfileView: View {
 
     private var avatarSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(LinearGradient(
+                        colors: [
+                            Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.85),
+                            Color(red: 140/255, green: 80/255, blue: 220/255).opacity(0.35)
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    ))
+                    .frame(width: 2, height: 14)
                 Text("Mon Avatar")
-                    .font(.custom("Futura-Bold", size: 16))
-                    .foregroundColor(.white)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.65))
+                    .tracking(0.3)
                 Spacer()
                 if avatarManager.hasAvatar {
+                    Button { showDeleteAvatarAlert = true } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12))
+                            .foregroundColor(.red.opacity(0.45))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 4)
                     Button { showAvatarCreator = true } label: {
                         Label("Recréer", systemImage: "arrow.clockwise")
                             .font(.system(size: 12, weight: .medium))
@@ -379,6 +410,18 @@ struct ProfileView: View {
                 handleAvatarExport(url: remoteURL)
             }
             .ignoresSafeArea()
+            // Hint : l'import se déclenche en cliquant le bouton dans Avaturn
+            .overlay(alignment: .top) {
+                Text("Clique sur le bouton d'export dans l'éditeur — l'import se fait automatiquement")
+                    .font(.system(size: 11, weight: .light))
+                    .foregroundColor(.white.opacity(0.5))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Capsule().fill(Color.black.opacity(0.55)))
+                    .padding(.top, 10)
+                    .allowsHitTesting(false)
+            }
             .navigationTitle("Créer mon avatar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
@@ -389,25 +432,6 @@ struct ProfileView: View {
                         showAvatarCreator = false
                     }
                     .foregroundColor(.white.opacity(0.65))
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button {
-                        if let url = capturedGLBURL {
-                            showAvatarCreator = false
-                            handleAvatarExport(url: url)
-                        } else {
-                            avaturnCoordinator?.evaluateExtractURL { _ in }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            if capturedGLBURL != nil {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(Color(red: 140/255, green: 220/255, blue: 130/255))
-                            }
-                            Text("Importer").fontWeight(.semibold)
-                        }
-                    }
-                    .foregroundColor(.white)
                 }
             }
         }
@@ -503,15 +527,24 @@ struct ProfileEditSheet: View {
     }
 
     private func editSectionHeader(_ text: String) -> some View {
-        HStack {
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 1)
+                .fill(LinearGradient(
+                    colors: [
+                        Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.75),
+                        Color(red: 140/255, green: 80/255, blue: 220/255).opacity(0.25)
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                ))
+                .frame(width: 2, height: 11)
             Text(text)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.white.opacity(0.35))
-                .tracking(1.5)
+                .foregroundColor(.white.opacity(0.50))
+                .tracking(1.2)
             Spacer()
         }
         .padding(.horizontal, 4)
-        .padding(.top, 4)
+        .padding(.top, 8)
     }
 
     private var editDivider: some View {

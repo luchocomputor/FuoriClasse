@@ -18,9 +18,21 @@ struct DressingItemListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            HStack {
+                Text("Dressing")
+                    .font(.custom("Futura-Bold", size: 30))
+                    .foregroundStyle(LinearGradient(
+                        colors: [.white, Color(red: 210/255, green: 170/255, blue: 255/255)],
+                        startPoint: .leading, endPoint: .trailing
+                    ))
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
+
             dressingSegmentedControl
                 .padding(.horizontal, 16)
-                .padding(.top, 12)
                 .padding(.bottom, 6)
 
             if selectedTab == 0 {
@@ -64,9 +76,7 @@ struct DressingItemListView: View {
             }
             .ignoresSafeArea()
         }
-        .navigationTitle("Mon Dressing")
-        .navigationBarTitleDisplayMode(.large)
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showingAddSheet) {
             if selectedTab == 0 {
                 DressingItemAddView(isPresented: $showingAddSheet)

@@ -468,15 +468,24 @@ struct DressingItemAddView: View {
     // MARK: - Helpers
 
     private func sectionHeader(_ text: String) -> some View {
-        HStack {
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 1)
+                .fill(LinearGradient(
+                    colors: [
+                        Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.75),
+                        Color(red: 140/255, green: 80/255, blue: 220/255).opacity(0.25)
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                ))
+                .frame(width: 2, height: 11)
             Text(text)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.white.opacity(0.35))
-                .tracking(1.5)
+                .foregroundColor(.white.opacity(0.50))
+                .tracking(1.2)
             Spacer()
         }
         .padding(.horizontal, 4)
-        .padding(.top, 4)
+        .padding(.top, 8)
     }
 
     private var addDivider: some View {
