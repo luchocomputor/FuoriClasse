@@ -31,6 +31,18 @@ struct StyleAdvisorView: View {
             // et remonte naturellement quand le clavier apparaît.
             VStack(spacing: 0) {
                 HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(LinearGradient(
+                                colors: [Color(red: 130/255, green: 70/255, blue: 210/255),
+                                         Color(red: 60/255, green: 20/255, blue: 120/255)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            ))
+                            .frame(width: 38, height: 38)
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white)
+                    }
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Fuoriclasse")
                             .font(.custom("Futura-Bold", size: 22))
@@ -38,7 +50,7 @@ struct StyleAdvisorView: View {
                                 colors: [.white, Color(red: 210/255, green: 170/255, blue: 255/255)],
                                 startPoint: .leading, endPoint: .trailing
                             ))
-                        Text("STYLISTE PERSONNEL")
+                        Text("PERSONAL STYLIST")
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundColor(.white.opacity(0.35))
                             .tracking(1.8)
@@ -78,7 +90,7 @@ struct StyleAdvisorView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Fermer") { isInputFocused = false }
+                    Button("Done") { isInputFocused = false }
                         .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255))
                         .fontWeight(.semibold)
                 }
@@ -127,64 +139,27 @@ struct StyleAdvisorView: View {
         }
     }
 
-    // MARK: - État vide
+    // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 28) {
-            Spacer().frame(height: 40)
+        VStack(spacing: 10) {
+            Spacer().frame(height: 24)
 
-            // Icône + titre
-            VStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(RadialGradient(
-                            colors: [Color.purple.opacity(0.5), .clear],
-                            center: .center, startRadius: 10, endRadius: 55
-                        ))
-                        .frame(width: 100, height: 100)
-                        .blur(radius: 12)
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 46, weight: .thin))
-                        .foregroundStyle(LinearGradient(
-                            colors: [.white, Color(red: 200/255, green: 150/255, blue: 255/255)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        ))
-                }
+            Text("What can I help you with?")
+                .font(.system(size: 15, weight: .light))
+                .foregroundColor(.white.opacity(0.35))
+                .padding(.bottom, 6)
 
-                VStack(spacing: 5) {
-                    Text("Fuoriclasse")
-                        .font(.custom("Futura-Bold", size: 24))
-                        .foregroundStyle(LinearGradient(
-                            colors: [.white, Color(red: 210/255, green: 170/255, blue: 255/255)],
-                            startPoint: .leading, endPoint: .trailing
-                        ))
-                    Text("STYLISTE PERSONNEL")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white.opacity(0.4))
-                        .tracking(2.5)
-                }
-            }
-
-            HStack {
-                Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
-                Image(systemName: "sparkle").font(.system(size: 9)).foregroundColor(.white.opacity(0.2))
-                Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
-            }
-            .padding(.horizontal, 50)
-
-            // Encarts de suggestion
-            VStack(spacing: 10) {
-                promptRow(
-                    left:  (icon: "figure.run",  title: "Sport demain",       subtitle: "Comment m'habiller ?",  prompt: "J'ai une séance de sport demain matin, comment m'habiller avec les pièces de mon dressing ?"),
-                    right: (icon: "heart",        title: "Date à venir",       subtitle: "Tenue pour l'occasion", prompt: "J'ai une date ce soir, quelle tenue me conseillerais-tu parmi mes vêtements ?")
-                )
-                promptRow(
-                    left:  (icon: "building.2",  title: "Au bureau",          subtitle: "Look professionnel",    prompt: "Je dois aller au bureau demain, construis-moi un look professionnel avec mon dressing."),
-                    right: (icon: "sun.max",      title: "Weekend",            subtitle: "Casual & confortable",  prompt: "C'est le weekend, je veux un look décontracté et confortable. Qu'est-ce que tu me proposes ?")
-                )
-            }
-            .padding(.horizontal, 16)
+            promptRow(
+                left:  (icon: "figure.run",  title: "Sport tomorrow",    subtitle: "What should I wear?",    prompt: "I have a workout tomorrow morning — how should I dress using my wardrobe?"),
+                right: (icon: "heart",        title: "Upcoming date",     subtitle: "Outfit for the occasion", prompt: "I have a date tonight. What outfit would you recommend from my wardrobe?")
+            )
+            promptRow(
+                left:  (icon: "building.2",  title: "Office look",       subtitle: "Professional style",      prompt: "I need to go to the office tomorrow. Build me a professional look from my wardrobe."),
+                right: (icon: "sun.max",      title: "Weekend",           subtitle: "Casual & comfortable",    prompt: "It's the weekend and I want a relaxed, comfortable look. What do you suggest from my wardrobe?")
+            )
         }
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
         .padding(.bottom, 10)
     }
@@ -289,7 +264,7 @@ struct StyleAdvisorView: View {
                             RoundedRectangle(cornerRadius: 10)
                                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
                         )
-                    Text("Photo jointe")
+                    Text("Photo attached")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.white.opacity(0.7))
                     Spacer()
@@ -326,7 +301,7 @@ struct StyleAdvisorView: View {
                 .buttonStyle(.plain)
 
                 // Champ de texte
-                TextField("Message…", text: $inputText, axis: .vertical)
+                TextField("Message...", text: $inputText, axis: .vertical)
                     .focused($isInputFocused)
                     .lineLimit(1...6)
                     .font(.system(size: 16))
