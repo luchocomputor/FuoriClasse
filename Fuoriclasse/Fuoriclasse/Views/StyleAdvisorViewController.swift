@@ -31,18 +31,27 @@ struct StyleAdvisorView: View {
             // et remonte naturellement quand le clavier apparaît.
             VStack(spacing: 0) {
                 HStack(spacing: 12) {
-                    ZStack {
-                        Circle()
-                            .fill(LinearGradient(
-                                colors: [Color(red: 130/255, green: 70/255, blue: 210/255),
-                                         Color(red: 60/255, green: 20/255, blue: 120/255)],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            ))
-                            .frame(width: 38, height: 38)
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
+                    Button {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            messages = []
+                            inputText = ""
+                            selectedImageData = nil
+                        }
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(LinearGradient(
+                                    colors: [Color(red: 130/255, green: 70/255, blue: 210/255),
+                                             Color(red: 60/255, green: 20/255, blue: 120/255)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                ))
+                                .frame(width: 38, height: 38)
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white)
+                        }
                     }
+                    .buttonStyle(.plain)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Fuoriclasse")
                             .font(.custom("Futura-Bold", size: 22))
@@ -186,7 +195,7 @@ struct StyleAdvisorView: View {
     private func promptCard(icon: String, title: String, subtitle: String, prompt: String) -> some View {
         Button {
             inputText = prompt
-            isInputFocused = true
+            sendMessage()
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 // Icône
