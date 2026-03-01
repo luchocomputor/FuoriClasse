@@ -128,152 +128,147 @@ struct ProfileView: View {
     // MARK: - Hero (Instagram-style)
 
     private var heroSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Pseudo + stats (pleine largeur)
-            VStack(alignment: .leading, spacing: 10) {
-                Text(username.isEmpty ? "Ajouter un pseudo" : username)
-                    .font(.custom("Futura-Bold", size: 16))
-                    .foregroundColor(username.isEmpty ? .white.opacity(0.3) : .white)
-                    .padding(.horizontal, 16)
+        VStack(alignment: .leading, spacing: 0) {
 
-                statsRow
-                    .padding(.horizontal, 16)
-            }
-
-            // Photo centrée en dessous des stats
-            HStack {
-                Spacer()
+            // — Ligne 1 : photo + stats —
+            HStack(alignment: .center, spacing: 0) {
                 profilePhoto
-                Spacer()
-            }
+                    .padding(.leading, 16)
 
-            // Bio + localisation
-            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 0) {
+                    instaStatCell(value: "\(itemCount)", label: "publications")
+                    if let userId = auth.session?.user.id {
+                        NavigationLink(value: FollowListTarget.followers(userId)) {
+                            instaStatCell(value: "\(followStats.followers)", label: "abonnés")
+                        }
+                        .buttonStyle(.plain)
+                        NavigationLink(value: FollowListTarget.following(userId)) {
+                            instaStatCell(value: "\(followStats.following)", label: "abonnements")
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        instaStatCell(value: "0", label: "abonnés")
+                        instaStatCell(value: "0", label: "abonnements")
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .padding(.bottom, 14)
+
+            // — Identité —
+            VStack(alignment: .leading, spacing: 3) {
+                Text(username.isEmpty ? "Ajouter un pseudo" : username)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(username.isEmpty ? .white.opacity(0.3) : .white)
                 if !bio.isEmpty {
                     Text(bio)
-                        .font(.system(size: 13, weight: .light))
-                        .foregroundColor(.white.opacity(0.7))
+                        .font(.system(size: 13))
+                        .foregroundColor(.white.opacity(0.8))
                         .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 if !location.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "mappin.circle.fill").font(.system(size: 11))
-                        Text(location).font(.system(size: 12, weight: .light))
+                    HStack(spacing: 3) {
+                        Image(systemName: "mappin.circle.fill")
+                            .font(.system(size: 11))
+                        Text(location)
+                            .font(.system(size: 12))
                     }
                     .foregroundColor(.white.opacity(0.45))
+                    .padding(.top, 1)
                 }
             }
             .padding(.horizontal, 16)
+            .padding(.bottom, 14)
 
-            // Bouton modifier
+            // — Bouton modifier —
             Button { showEditSheet = true } label: {
                 Text("Modifier le profil")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 7)
                     .background(
-                        RoundedRectangle(cornerRadius: 9)
-                            .fill(Color.white.opacity(0.09))
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.white.opacity(0.08))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 9)
-                                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
                             )
                     )
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 16)
         }
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
 
-    // Photo de profil (88 × 88 avec bouton caméra)
+    // Photo de profil avec bouton caméra
     private var profilePhoto: some View {
         ZStack(alignment: .bottomTrailing) {
+            // Anneau dégradé (style story)
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 200/255, green: 120/255, blue: 255/255),
+                            Color(red: 100/255, green: 50/255, blue: 200/255),
+                            Color(red: 60/255, green: 20/255, blue: 160/255)
+                        ],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 96, height: 96)
+
             Group {
                 if let data = profileImageData, let img = UIImage(data: data) {
                     Image(uiImage: img).resizable().scaledToFill()
                 } else {
                     ZStack {
                         LinearGradient(
-                            colors: [Color(red: 100/255, green: 50/255, blue: 180/255),
-                                     Color(red: 50/255, green: 15/255, blue: 100/255)],
+                            colors: [Color(red: 40/255, green: 15/255, blue: 80/255),
+                                     Color(red: 20/255, green: 5/255, blue: 50/255)],
                             startPoint: .topLeading, endPoint: .bottomTrailing
                         )
                         Image(systemName: "person.fill")
-                            .font(.system(size: 34))
-                            .foregroundColor(.white.opacity(0.5))
+                            .font(.system(size: 36))
+                            .foregroundColor(.white.opacity(0.35))
                     }
                 }
             }
-            .frame(width: 86, height: 86)
+            .frame(width: 88, height: 88)
             .clipShape(Circle())
-            .overlay(
-                Circle().stroke(
-                    LinearGradient(
-                        colors: [Color(red: 180/255, green: 120/255, blue: 255/255),
-                                 Color(red: 80/255, green: 30/255, blue: 160/255)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 2.5
-                )
-            )
-            .shadow(color: .purple.opacity(0.35), radius: 10, x: 0, y: 4)
+            .overlay(Circle().stroke(Color(red: 15/255, green: 5/255, blue: 40/255), lineWidth: 3))
 
+            // Bouton caméra
             Button { showPhotoPicker = true } label: {
                 ZStack {
-                    Circle().fill(Color(red: 140/255, green: 80/255, blue: 220/255)).frame(width: 26, height: 26)
-                    Image(systemName: "camera.fill").font(.system(size: 10)).foregroundColor(.white)
+                    Circle()
+                        .fill(Color(red: 120/255, green: 60/255, blue: 200/255))
+                        .frame(width: 26, height: 26)
+                        .overlay(Circle().stroke(Color(red: 15/255, green: 5/255, blue: 40/255), lineWidth: 2))
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.white)
                 }
             }
             .offset(x: 2, y: 2)
         }
     }
 
-    // Stats en ligne (pièces | abonnés | abonnements)
-    private var statsRow: some View {
-        HStack(spacing: 0) {
-            instaStatCell(value: "\(itemCount)", label: "pièces")
-
-            statVerticalDivider
-
-            if let userId = auth.session?.user.id {
-                NavigationLink(value: FollowListTarget.followers(userId)) {
-                    instaStatCell(value: "\(followStats.followers)", label: "abonnés")
-                }
-                .buttonStyle(.plain)
-
-                statVerticalDivider
-
-                NavigationLink(value: FollowListTarget.following(userId)) {
-                    instaStatCell(value: "\(followStats.following)", label: "abonnements")
-                }
-                .buttonStyle(.plain)
-            } else {
-                instaStatCell(value: "0", label: "abonnés")
-                statVerticalDivider
-                instaStatCell(value: "0", label: "abonnements")
-            }
-        }
-    }
-
     private func instaStatCell(value: String, label: String) -> some View {
-        VStack(spacing: 3) {
+        VStack(spacing: 2) {
             Text(value)
-                .font(.custom("Futura-Bold", size: 18))
+                .font(.system(size: 17, weight: .bold))
                 .foregroundColor(.white)
             Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(.white.opacity(0.5))
-                .tracking(0.1)
+                .font(.system(size: 11))
+                .foregroundColor(.white.opacity(0.45))
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 4)
-    }
-
-    private var statVerticalDivider: some View {
-        Rectangle()
-            .fill(Color.white.opacity(0.12))
-            .frame(width: 1, height: 26)
+        .padding(.vertical, 2)
     }
 
     // MARK: - Tab bar (Instagram-style)
