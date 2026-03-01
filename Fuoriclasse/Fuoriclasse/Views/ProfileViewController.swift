@@ -334,7 +334,7 @@ struct ProfileView: View {
                     columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3),
                     spacing: 2
                 ) {
-                    ForEach(dressingItems) { item in
+                    ForEach(dressingItems, id: \.objectID) { item in
                         NavigationLink(destination: DressingItemDetailView(item: item)) {
                             dressingCell(item: item)
                         }
