@@ -174,34 +174,14 @@ struct StyleAdvisorView: View {
 
             // Encarts de suggestion
             VStack(spacing: 10) {
-                HStack(spacing: 10) {
-                    promptCard(
-                        icon: "figure.run",
-                        title: "Sport demain",
-                        subtitle: "Comment m'habiller ?",
-                        prompt: "J'ai une séance de sport demain matin, comment m'habiller avec les pièces de mon dressing ?"
-                    )
-                    promptCard(
-                        icon: "heart",
-                        title: "Date à venir",
-                        subtitle: "Tenue pour l'occasion",
-                        prompt: "J'ai une date ce soir, quelle tenue me conseillerais-tu parmi mes vêtements ?"
-                    )
-                }
-                HStack(spacing: 10) {
-                    promptCard(
-                        icon: "building.2",
-                        title: "Au bureau",
-                        subtitle: "Look professionnel",
-                        prompt: "Je dois aller au bureau demain, construis-moi un look professionnel avec mon dressing."
-                    )
-                    promptCard(
-                        icon: "sun.max",
-                        title: "Weekend décontracté",
-                        subtitle: "Casual & confortable",
-                        prompt: "C'est le weekend, je veux un look décontracté et confortable. Qu'est-ce que tu me proposes ?"
-                    )
-                }
+                promptRow(
+                    left:  (icon: "figure.run",  title: "Sport demain",       subtitle: "Comment m'habiller ?",  prompt: "J'ai une séance de sport demain matin, comment m'habiller avec les pièces de mon dressing ?"),
+                    right: (icon: "heart",        title: "Date à venir",       subtitle: "Tenue pour l'occasion", prompt: "J'ai une date ce soir, quelle tenue me conseillerais-tu parmi mes vêtements ?")
+                )
+                promptRow(
+                    left:  (icon: "building.2",  title: "Au bureau",          subtitle: "Look professionnel",    prompt: "Je dois aller au bureau demain, construis-moi un look professionnel avec mon dressing."),
+                    right: (icon: "sun.max",      title: "Weekend",            subtitle: "Casual & confortable",  prompt: "C'est le weekend, je veux un look décontracté et confortable. Qu'est-ce que tu me proposes ?")
+                )
             }
             .padding(.horizontal, 16)
         }
@@ -209,39 +189,56 @@ struct StyleAdvisorView: View {
         .padding(.bottom, 10)
     }
 
+    // Ligne de deux cards égales en hauteur
+    private func promptRow(
+        left:  (icon: String, title: String, subtitle: String, prompt: String),
+        right: (icon: String, title: String, subtitle: String, prompt: String)
+    ) -> some View {
+        HStack(spacing: 10) {
+            promptCard(icon: left.icon,  title: left.title,  subtitle: left.subtitle,  prompt: left.prompt)
+                .frame(maxHeight: .infinity)
+            promptCard(icon: right.icon, title: right.title, subtitle: right.subtitle, prompt: right.prompt)
+                .frame(maxHeight: .infinity)
+        }
+    }
+
     private func promptCard(icon: String, title: String, subtitle: String, prompt: String) -> some View {
         Button {
             inputText = prompt
             isInputFocused = true
         } label: {
-            HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 10) {
+                // Icône
                 ZStack {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color(red: 120/255, green: 60/255, blue: 200/255).opacity(0.25))
-                        .frame(width: 32, height: 32)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(red: 100/255, green: 45/255, blue: 180/255).opacity(0.30))
+                        .frame(width: 38, height: 38)
                     Image(systemName: icon)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color(red: 180/255, green: 120/255, blue: 255/255))
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(Color(red: 190/255, green: 135/255, blue: 255/255))
                 }
-                VStack(alignment: .leading, spacing: 3) {
+
+                // Texte
+                VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.white)
+                        .lineLimit(1)
                     Text(subtitle)
                         .font(.system(size: 11, weight: .light))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundColor(.white.opacity(0.48))
                         .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 0)
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.white.opacity(0.06))
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.white.opacity(0.07))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.white.opacity(0.11), lineWidth: 1)
                     )
             )
         }
@@ -317,10 +314,10 @@ struct StyleAdvisorView: View {
                 Button { showPhotoPicker = true } label: {
                     ZStack {
                         Circle()
-                            .fill(Color.white.opacity(selectedImageData != nil ? 0.12 : 0.07))
-                            .frame(width: 38, height: 38)
+                            .fill(Color.white.opacity(selectedImageData != nil ? 0.14 : 0.08))
+                            .frame(width: 44, height: 44)
                         Image(systemName: selectedImageData != nil ? "photo.fill" : "photo")
-                            .font(.system(size: 15, weight: .medium))
+                            .font(.system(size: 17, weight: .medium))
                             .foregroundColor(selectedImageData != nil
                                 ? Color(red: 180/255, green: 120/255, blue: 255/255)
                                 : .white.opacity(0.45))
@@ -328,38 +325,38 @@ struct StyleAdvisorView: View {
                 }
                 .buttonStyle(.plain)
 
-                // Champ de texte (pill indépendante)
+                // Champ de texte
                 TextField("Message…", text: $inputText, axis: .vertical)
                     .focused($isInputFocused)
                     .lineLimit(1...6)
-                    .font(.system(size: 15))
+                    .font(.system(size: 16))
                     .foregroundColor(.white)
                     .tint(Color(red: 180/255, green: 120/255, blue: 255/255))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 13)
                     .background(
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .fill(Color.white.opacity(0.08))
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(Color.white.opacity(0.09))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                    .stroke(Color.white.opacity(0.13), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
                             )
                     )
 
-                // Bouton envoi (cercle violet séparé)
+                // Bouton envoi
                 Button(action: sendMessage) {
                     ZStack {
                         Circle()
                             .fill(canSend
                                 ? Color(red: 120/255, green: 60/255, blue: 200/255)
-                                : Color.white.opacity(0.07))
-                            .frame(width: 38, height: 38)
+                                : Color.white.opacity(0.08))
+                            .frame(width: 44, height: 44)
                             .shadow(
-                                color: Color(red: 120/255, green: 60/255, blue: 200/255).opacity(canSend ? 0.4 : 0),
-                                radius: 8, x: 0, y: 3
+                                color: Color(red: 120/255, green: 60/255, blue: 200/255).opacity(canSend ? 0.45 : 0),
+                                radius: 10, x: 0, y: 4
                             )
                         Image(systemName: "arrow.up")
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.system(size: 16, weight: .bold))
                             .foregroundColor(canSend ? .white : .white.opacity(0.18))
                     }
                 }
@@ -368,8 +365,8 @@ struct StyleAdvisorView: View {
                 .animation(.spring(response: 0.25), value: canSend)
             }
             .padding(.horizontal, 14)
-            .padding(.top, 10)
-            .padding(.bottom, 12)
+            .padding(.top, 12)
+            .padding(.bottom, 16)
         }
         .background(Color(red: 15/255, green: 5/255, blue: 38/255))
     }
