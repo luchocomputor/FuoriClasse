@@ -42,12 +42,9 @@ struct ProfileView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
+                pageHeader
                 heroSection
-                    .padding(.top, 16)
-                    .padding(.bottom, 20)
-
                 profileTabBar
-
                 tabContent
             }
         }
@@ -72,14 +69,6 @@ struct ProfileView: View {
                 FollowersListView(userId: id, mode: .followers).environmentObject(auth)
             case .following(let id):
                 FollowersListView(userId: id, mode: .following).environmentObject(auth)
-            }
-        }
-        .overlay(alignment: .topTrailing) {
-            Button { showSettings = true } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 16))
-                    .foregroundColor(.white.opacity(0.60))
-                    .padding(16)
             }
         }
         .sheet(isPresented: $showPhotoPicker) {
@@ -125,13 +114,41 @@ struct ProfileView: View {
         if let posts = try? await postsTask { userPosts = posts }
     }
 
-    // MARK: - Hero (Instagram-style)
+    // MARK: - Header page
+
+    private var pageHeader: some View {
+        HStack(alignment: .center) {
+            Text(username.isEmpty ? "Profil" : username)
+                .font(.custom("Futura-Bold", size: 28))
+                .foregroundStyle(LinearGradient(
+                    colors: [.white, Color(red: 210/255, green: 170/255, blue: 255/255)],
+                    startPoint: .leading, endPoint: .trailing
+                ))
+            Spacer()
+            Button { showSettings = true } label: {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.08))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.white.opacity(0.65))
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 20)
+    }
+
+    // MARK: - Hero
 
     private var heroSection: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            // — Ligne 1 : photo + stats —
-            HStack(alignment: .center, spacing: 0) {
+            // Photo + stats
+            HStack(alignment: .center, spacing: 12) {
                 profilePhoto
                     .padding(.leading, 16)
 
@@ -153,122 +170,106 @@ struct ProfileView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
-            .padding(.bottom, 14)
+            .padding(.bottom, 16)
 
-            // — Identité —
-            VStack(alignment: .leading, spacing: 3) {
-                Text(username.isEmpty ? "Ajouter un pseudo" : username)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(username.isEmpty ? .white.opacity(0.3) : .white)
+            // Identité
+            VStack(alignment: .leading, spacing: 4) {
+                if !username.isEmpty {
+                    Text(username)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                }
                 if !bio.isEmpty {
                     Text(bio)
                         .font(.system(size: 13))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(.white.opacity(0.75))
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if !location.isEmpty {
                     HStack(spacing: 3) {
-                        Image(systemName: "mappin.circle.fill")
-                            .font(.system(size: 11))
-                        Text(location)
-                            .font(.system(size: 12))
+                        Image(systemName: "mappin.circle.fill").font(.system(size: 11))
+                        Text(location).font(.system(size: 12))
                     }
                     .foregroundColor(.white.opacity(0.45))
-                    .padding(.top, 1)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 14)
 
-            // — Bouton modifier —
+            // Bouton modifier
             Button { showEditSheet = true } label: {
                 Text("Modifier le profil")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 7)
+                    .padding(.vertical, 8)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.white.opacity(0.08))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
+                            .fill(Color.white.opacity(0.07))
+                            .overlay(RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.white.opacity(0.18), lineWidth: 1))
                     )
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 16)
+            .padding(.bottom, 20)
         }
-        .padding(.top, 8)
-        .padding(.bottom, 4)
     }
 
-    // Photo de profil avec bouton caméra
+    // Photo de profil
     private var profilePhoto: some View {
         ZStack(alignment: .bottomTrailing) {
-            // Anneau dégradé (style story)
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 200/255, green: 120/255, blue: 255/255),
-                            Color(red: 100/255, green: 50/255, blue: 200/255),
-                            Color(red: 60/255, green: 20/255, blue: 160/255)
-                        ],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 96, height: 96)
-
             Group {
                 if let data = profileImageData, let img = UIImage(data: data) {
                     Image(uiImage: img).resizable().scaledToFill()
                 } else {
                     ZStack {
-                        LinearGradient(
-                            colors: [Color(red: 40/255, green: 15/255, blue: 80/255),
-                                     Color(red: 20/255, green: 5/255, blue: 50/255)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
+                        Color(red: 35/255, green: 12/255, blue: 70/255)
                         Image(systemName: "person.fill")
-                            .font(.system(size: 36))
-                            .foregroundColor(.white.opacity(0.35))
+                            .font(.system(size: 32))
+                            .foregroundColor(.white.opacity(0.28))
                     }
                 }
             }
-            .frame(width: 88, height: 88)
+            .frame(width: 82, height: 82)
             .clipShape(Circle())
-            .overlay(Circle().stroke(Color(red: 15/255, green: 5/255, blue: 40/255), lineWidth: 3))
+            .overlay(
+                Circle().stroke(
+                    LinearGradient(
+                        colors: [Color(red: 190/255, green: 130/255, blue: 255/255),
+                                 Color(red: 110/255, green: 50/255, blue: 210/255)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 2.5
+                )
+            )
 
-            // Bouton caméra
             Button { showPhotoPicker = true } label: {
                 ZStack {
                     Circle()
-                        .fill(Color(red: 120/255, green: 60/255, blue: 200/255))
-                        .frame(width: 26, height: 26)
-                        .overlay(Circle().stroke(Color(red: 15/255, green: 5/255, blue: 40/255), lineWidth: 2))
+                        .fill(Color(red: 110/255, green: 55/255, blue: 195/255))
+                        .frame(width: 24, height: 24)
                     Image(systemName: "camera.fill")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 9))
                         .foregroundColor(.white)
                 }
             }
-            .offset(x: 2, y: 2)
+            .offset(x: 1, y: 1)
         }
     }
 
     private func instaStatCell(value: String, label: String) -> some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(.system(size: 17, weight: .bold))
+                .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.white)
             Text(label)
-                .font(.system(size: 11))
+                .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.white.opacity(0.45))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 2)
     }
 
     // MARK: - Tab bar (Instagram-style)
