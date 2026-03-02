@@ -141,58 +141,60 @@ struct ProfileView: View {
     private var heroSection: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            // Photo + stats
-            HStack(alignment: .center, spacing: 12) {
+            // Ligne 1 : photo gauche + stats droite
+            HStack(alignment: .center, spacing: 0) {
                 profilePhoto
                     .padding(.leading, 16)
+                    .padding(.trailing, 12)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    // Pseudo au-dessus des stats
-                    Text(username.isEmpty ? "Ajouter un pseudo" : username)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(username.isEmpty ? .white.opacity(0.3) : .white)
-                        .padding(.leading, 4)
-
-                    HStack(spacing: 0) {
-                        instaStatCell(value: "\(itemCount)", label: "pièces")
-                        if let userId = auth.session?.user.id {
-                            NavigationLink(value: FollowListTarget.followers(userId)) {
-                                instaStatCell(value: "\(followStats.followers)", label: "abonnés")
-                            }
-                            .buttonStyle(.plain)
-                            NavigationLink(value: FollowListTarget.following(userId)) {
-                                instaStatCell(value: "\(followStats.following)", label: "abonnements")
-                            }
-                            .buttonStyle(.plain)
-                        } else {
-                            instaStatCell(value: "0", label: "abonnés")
-                            instaStatCell(value: "0", label: "abonnements")
+                HStack(spacing: 0) {
+                    instaStatCell(value: "\(itemCount)", label: "pièces")
+                    if let userId = auth.session?.user.id {
+                        NavigationLink(value: FollowListTarget.followers(userId)) {
+                            instaStatCell(value: "\(followStats.followers)", label: "abonnés")
                         }
+                        .buttonStyle(.plain)
+                        NavigationLink(value: FollowListTarget.following(userId)) {
+                            instaStatCell(value: "\(followStats.following)", label: "abonnements")
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        instaStatCell(value: "0", label: "abonnés")
+                        instaStatCell(value: "0", label: "abonnements")
                     }
                 }
                 .frame(maxWidth: .infinity)
             }
-            .padding(.bottom, 14)
+            .padding(.bottom, 12)
 
-            // Bio + localisation
-            VStack(alignment: .leading, spacing: 4) {
-                if !bio.isEmpty {
-                    Text(bio)
-                        .font(.system(size: 13))
-                        .foregroundColor(.white.opacity(0.75))
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if !location.isEmpty {
-                    HStack(spacing: 3) {
-                        Image(systemName: "mappin.circle.fill").font(.system(size: 11))
-                        Text(location).font(.system(size: 12))
-                    }
-                    .foregroundColor(.white.opacity(0.45))
-                }
+            // Ligne 2 : pseudo
+            Text(username.isEmpty ? "Ajouter un pseudo" : username)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(username.isEmpty ? .white.opacity(0.3) : .white)
+                .padding(.horizontal, 16)
+                .padding(.bottom, bio.isEmpty && location.isEmpty ? 12 : 4)
+
+            // Bio
+            if !bio.isEmpty {
+                Text(bio)
+                    .font(.system(size: 13))
+                    .foregroundColor(.white.opacity(0.75))
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, location.isEmpty ? 12 : 4)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 14)
+
+            // Localisation
+            if !location.isEmpty {
+                HStack(spacing: 3) {
+                    Image(systemName: "mappin.circle.fill").font(.system(size: 11))
+                    Text(location).font(.system(size: 12))
+                }
+                .foregroundColor(.white.opacity(0.45))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+            }
 
             // Bouton modifier
             Button { showEditSheet = true } label: {
