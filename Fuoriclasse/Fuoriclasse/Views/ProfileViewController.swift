@@ -15,9 +15,9 @@ struct ProfileView: View {
 
     @StateObject private var avatarManager = AvatarManager()
 
-    @State private var username         = ""
-    @State private var location         = ""
-    @State private var bio              = ""
+    @AppStorage("profile_username") private var username = ""
+    @AppStorage("profile_location") private var location = ""
+    @AppStorage("profile_bio")      private var bio      = ""
 
     @State private var followStats: (followers: Int, following: Int) = (0, 0)
     @State private var selectedTab          = 0
@@ -84,7 +84,7 @@ struct ProfileView: View {
             SettingsView()
                 .environmentObject(auth)
         }
-        .sheet(isPresented: $showEditSheet, onDismiss: { Task { await reloadProfile() } }) {
+        .sheet(isPresented: $showEditSheet) {
             ProfileEditSheet(auth: auth, username: $username, location: $location, bio: $bio)
         }
         .sheet(isPresented: $showAvatarCreator, onDismiss: { capturedGLBURL = nil }) {
@@ -103,10 +103,15 @@ struct ProfileView: View {
 
     @MainActor
     private func reloadProfile() async {
-        guard let profile = try? await auth.loadProfile() else { return }
-        username = profile.username ?? ""
-        location = profile.location ?? ""
-        bio      = profile.bio      ?? ""
+        // Identité : charge depuis Supabase uniquement si @AppStorage est encore vide
+        if username.isEmpty || bio.isEmpty {
+            if let profile = try? await auth.loadProfile() {
+                if let u = profile.username, !u.isEmpty { username = u }
+                if let l = profile.location, !l.isEmpty { location = l }
+                if let b = profile.bio,      !b.isEmpty { bio      = b }
+            }
+        }
+        // Stats & posts
         guard let userId = auth.session?.user.id else { return }
         async let statsTask = SocialService.shared.fetchFollowStats(userId: userId)
         async let postsTask = SocialService.shared.fetchUserPosts(userId: userId, currentUserId: userId)
