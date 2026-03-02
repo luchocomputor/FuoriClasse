@@ -114,16 +114,10 @@ struct ProfileView: View {
         if let posts = try? await postsTask { userPosts = posts }
     }
 
-    // MARK: - Header page
+    // MARK: - Header page (gear only)
 
     private var pageHeader: some View {
-        HStack(alignment: .center) {
-            Text(username.isEmpty ? "Profil" : username)
-                .font(.custom("Futura-Bold", size: 28))
-                .foregroundStyle(LinearGradient(
-                    colors: [.white, Color(red: 210/255, green: 170/255, blue: 255/255)],
-                    startPoint: .leading, endPoint: .trailing
-                ))
+        HStack {
             Spacer()
             Button { showSettings = true } label: {
                 ZStack {
@@ -139,7 +133,7 @@ struct ProfileView: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 16)
-        .padding(.bottom, 20)
+        .padding(.bottom, 4)
     }
 
     // MARK: - Hero
@@ -152,33 +146,36 @@ struct ProfileView: View {
                 profilePhoto
                     .padding(.leading, 16)
 
-                HStack(spacing: 0) {
-                    instaStatCell(value: "\(itemCount)", label: "publications")
-                    if let userId = auth.session?.user.id {
-                        NavigationLink(value: FollowListTarget.followers(userId)) {
-                            instaStatCell(value: "\(followStats.followers)", label: "abonnés")
+                VStack(alignment: .leading, spacing: 6) {
+                    // Pseudo au-dessus des stats
+                    Text(username.isEmpty ? "Ajouter un pseudo" : username)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(username.isEmpty ? .white.opacity(0.3) : .white)
+                        .padding(.leading, 4)
+
+                    HStack(spacing: 0) {
+                        instaStatCell(value: "\(itemCount)", label: "pièces")
+                        if let userId = auth.session?.user.id {
+                            NavigationLink(value: FollowListTarget.followers(userId)) {
+                                instaStatCell(value: "\(followStats.followers)", label: "abonnés")
+                            }
+                            .buttonStyle(.plain)
+                            NavigationLink(value: FollowListTarget.following(userId)) {
+                                instaStatCell(value: "\(followStats.following)", label: "abonnements")
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            instaStatCell(value: "0", label: "abonnés")
+                            instaStatCell(value: "0", label: "abonnements")
                         }
-                        .buttonStyle(.plain)
-                        NavigationLink(value: FollowListTarget.following(userId)) {
-                            instaStatCell(value: "\(followStats.following)", label: "abonnements")
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        instaStatCell(value: "0", label: "abonnés")
-                        instaStatCell(value: "0", label: "abonnements")
                     }
                 }
                 .frame(maxWidth: .infinity)
             }
-            .padding(.bottom, 16)
+            .padding(.bottom, 14)
 
-            // Identité
+            // Bio + localisation
             VStack(alignment: .leading, spacing: 4) {
-                if !username.isEmpty {
-                    Text(username)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                }
                 if !bio.isEmpty {
                     Text(bio)
                         .font(.system(size: 13))
@@ -232,7 +229,7 @@ struct ProfileView: View {
                     }
                 }
             }
-            .frame(width: 82, height: 82)
+            .frame(width: 86, height: 86)
             .clipShape(Circle())
             .overlay(
                 Circle().stroke(
@@ -308,15 +305,19 @@ struct ProfileView: View {
 
     // MARK: - Tab content
 
-    @ViewBuilder
     private var tabContent: some View {
-        switch selectedTab {
-        case 0: dressingGrid
-        case 1: outfitsGrid
-        case 2: feedGrid
-        case 3: avatarSection.padding(.top, 20).padding(.horizontal, 0)
-        default: EmptyView()
+        Group {
+            if selectedTab == 0 {
+                dressingGrid
+            } else if selectedTab == 1 {
+                outfitsGrid
+            } else if selectedTab == 2 {
+                feedGrid
+            } else {
+                avatarSection.padding(.top, 20)
+            }
         }
+        .id(selectedTab)
     }
 
     // MARK: - Dressing grid (3 colonnes)
